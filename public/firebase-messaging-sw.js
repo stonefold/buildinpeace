@@ -17,9 +17,9 @@ firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
-// Gérer les notifications en arrière-plan
+// Gerer les notifications en arriere-plan
 messaging.onBackgroundMessage(function (payload) {
-  console.log('Message reçu en arrière-plan : ', payload);
+  console.log('Message recu en arriere-plan : ', payload);
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,

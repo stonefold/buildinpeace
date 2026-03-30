@@ -79,7 +79,7 @@ const Offre = ({ chantierId, chantierName }) => {
         date: newOfferData.date,
         montant: parseFloat(newOfferData.montant),
         statut: newOfferData.statut,
-        pdf: pdfUrl || 'Télécharger PDF',
+        pdf: pdfUrl || 'Telecharger PDF',
         type: selectedOfferType
       };
 
@@ -132,7 +132,7 @@ const Offre = ({ chantierId, chantierName }) => {
           <button
             className="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-500 text-xs sm:text-sm flex items-center"
             onClick={(e) => {
-              e.stopPropagation(); // Empêcher le toggle du repli/dépliement lors du clic sur "Ajouter"
+              e.stopPropagation(); // Empecher le toggle du repli/depliement lors du clic sur "Ajouter"
               openAddModal(type);
             }}
           >
@@ -147,10 +147,10 @@ const Offre = ({ chantierId, chantierName }) => {
             <div className="block md:hidden space-y-2 mt-2">
               {offers[type].map((offer, index) => (
                 <div key={index} className="bg-gray-100 p-3 rounded shadow-md">
-                  <p><strong>Numéro:</strong> {offer.num}</p>
+                  <p><strong>Numero:</strong> {offer.num}</p>
                   <p><strong>Titre:</strong> {offer.title}</p>
                   <p><strong>Date:</strong> {offer.date}</p>
-                  <p><strong>Montant:</strong> {parseFloat(offer.montant).toLocaleString()} €</p>
+                  <p><strong>Montant:</strong> {parseFloat(offer.montant).toLocaleString()} EUR</p>
                   <p><strong>Statut:</strong> {offer.statut}</p>
                   <div className="flex justify-between mt-2">
                     <a href={offer.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center">
@@ -170,7 +170,7 @@ const Offre = ({ chantierId, chantierName }) => {
               <table className="w-full table-auto border-collapse text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-gray-200 text-gray-600">
-                    <th className="border p-1">Numéro</th>
+                    <th className="border p-1">Numero</th>
                     <th className="border p-1">Titre</th>
                     <th className="border p-1">Date</th>
                     <th className="border p-1">Montant</th>
@@ -185,7 +185,7 @@ const Offre = ({ chantierId, chantierName }) => {
                       <td className="border p-1 text-center">{offer.num}</td>
                       <td className="border p-1">{offer.title}</td>
                       <td className="border p-1">{offer.date}</td>
-                      <td className="border p-1">{parseFloat(offer.montant).toLocaleString()} €</td>
+                      <td className="border p-1">{parseFloat(offer.montant).toLocaleString()} EUR</td>
                       <td className="border p-1">{offer.statut}</td>
                       <td className="border p-1 text-center">
                         <a href={offer.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
@@ -211,9 +211,9 @@ const Offre = ({ chantierId, chantierName }) => {
   return (
     <div>
       {renderOfferSection('initial', 'Offre Initiale')}
-      {renderOfferSection('validated', 'Offre Validée')}
+      {renderOfferSection('validated', 'Offre Validee')}
       {renderOfferSection('inProgress', 'Offre en cours')}
-      {renderOfferSection('refused', 'Offre Refusée')}
+      {renderOfferSection('refused', 'Offre Refusee')}
 
       {/* Modal pour ajouter une offre */}
       {isModalOpen && (
@@ -223,7 +223,7 @@ const Offre = ({ chantierId, chantierName }) => {
             {error && <p className="text-red-500 mb-2">{error}</p>}
             
             <div className="space-y-2">
-              <input type="text" placeholder="Numéro" className="w-full p-2 border rounded" value={newOfferData.num} onChange={(e) => setNewOfferData({ ...newOfferData, num: e.target.value })} />
+              <input type="text" placeholder="Numero" className="w-full p-2 border rounded" value={newOfferData.num} onChange={(e) => setNewOfferData({ ...newOfferData, num: e.target.value })} />
               <input type="text" placeholder="Titre" className="w-full p-2 border rounded" value={newOfferData.title} onChange={(e) => setNewOfferData({ ...newOfferData, title: e.target.value })} />
               <input type="date" className="w-full p-2 border rounded" value={newOfferData.date} onChange={(e) => setNewOfferData({ ...newOfferData, date: e.target.value })} />
               <input type="text" placeholder="Montant" className="w-full p-2 border rounded" value={newOfferData.montant} onChange={(e) => setNewOfferData({ ...newOfferData, montant: e.target.value })} />

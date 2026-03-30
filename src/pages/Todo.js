@@ -10,11 +10,11 @@ const Todo = ({ chantierId }) => {
   const [archivedTodos, setArchivedTodos] = useState([]);
   const [sections, setSections] = useState([]);
   const [sectionOpen, setSectionOpen] = useState({});
-  const [activeTab, setActiveTab] = useState('Tâches personnelles');
+  const [activeTab, setActiveTab] = useState('Taches personnelles');
   const [newSectionName, setNewSectionName] = useState('');
   const [intervenants, setIntervenants] = useState([]);
   const [showTaskDetailsModal, setShowTaskDetailsModal] = useState(false);
-  const [taskDetails, setTaskDetails] = useState(null); // Stocke les détails de la tâche sélectionnée
+  const [taskDetails, setTaskDetails] = useState(null); // Stocke les details de la tache selectionnee
   const [sortColumn, setSortColumn] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -35,7 +35,7 @@ const Todo = ({ chantierId }) => {
   });
   const [selectedTodo, setSelectedTodo] = useState(null);
   const [showTodoModal, setShowTodoModal] = useState(false);
-  const [step, setStep] = useState(1); // Assurez-vous que cette ligne est bien présente ici
+  const [step, setStep] = useState(1); // Assurez-vous que cette ligne est bien presente ici
 
   
   const [showSectionModal, setShowSectionModal] = useState(false);
@@ -65,12 +65,12 @@ const Todo = ({ chantierId }) => {
         }
       });
   
-      // Récupérer tous les intervenants à partir de la sous-collection 'participants'
+      // Recuperer tous les intervenants a partir de la sous-collection 'participants'
       const participantsCollection = collection(chantierRef, 'participants');
       getDocs(participantsCollection).then((participantsSnapshot) => {
         const participantsList = participantsSnapshot.docs.map((doc) => doc.data().email); // Assuming each participant has a 'name' field
         setIntervenants(participantsList);
-        console.log("Intervenants récupérés :", participantsList); // Vérifiez le contenu récupéré ici
+        console.log("Intervenants recuperes :", participantsList); // Verifiez le contenu recupere ici
 
       });
   
@@ -83,7 +83,7 @@ const Todo = ({ chantierId }) => {
   
   const handleSort = (column) => {
     if (sortColumn === column) {
-      // Inverser l'ordre si on clique sur la même colonne
+      // Inverser l'ordre si on clique sur la meme colonne
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       // Sinon, trier en ascendant sur la nouvelle colonne
@@ -96,11 +96,11 @@ const Todo = ({ chantierId }) => {
   const handleTabClick = (tabName) => setActiveTab(tabName);
 
   const getFilteredTasks = () => {
-    let tasks = activeTab === 'Tâches personnelles' 
+    let tasks = activeTab === 'Taches personnelles' 
       ? todos.filter(task => !task.completed) 
       : [...archivedTodos, ...todos.filter(task => task.completed)];
   
-    // Trier les tâches en fonction de sortColumn et sortOrder
+    // Trier les taches en fonction de sortColumn et sortOrder
     if (sortColumn) {
       tasks = tasks.sort((a, b) => {
         const aValue = a[sortColumn];
@@ -138,11 +138,11 @@ const Todo = ({ chantierId }) => {
   const deleteSection = async (section) => {
     const hasTodos = todos.some((todo) => todo.section === section);
     if (hasTodos) {
-      alert("Vous ne pouvez pas supprimer une section contenant des tâches.");
+      alert("Vous ne pouvez pas supprimer une section contenant des taches.");
       return;
     }
 
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la section "${section}" ?`)) {
+    if (window.confirm(`Etes-vous sur de vouloir supprimer la section "${section}" ?`)) {
       try {
         const chantierRef = doc(db, 'chantiers', chantierId);
         await updateDoc(chantierRef, {
@@ -172,20 +172,20 @@ const Todo = ({ chantierId }) => {
         completed: false,
         archived: false,
         comments: [],
-        section: newTodo.section, // Ajoute la section sélectionnée
+        section: newTodo.section, // Ajoute la section selectionnee
       });
       setNewTodo({ title: '', description: '', piece: '', interventionType: '', date: '', section: '', comments: [], assignees: [] });
       setShowTodoModal(false);
-      setStep(1); // Réinitialise l'étape à 1 pour la prochaine fois
+      setStep(1); // Reinitialise l'etape a 1 pour la prochaine fois
     } catch (error) {
-      console.error("Erreur lors de l'ajout de la tâche : ", error);
+      console.error("Erreur lors de l'ajout de la tache : ", error);
     }
   };
 
   const openEditModal = (task) => {
     setSelectedTodo(task); 
-    setNewTodo(task); // Pré-remplit les données existantes de la tâche dans newTodo
-    setShowTodoModal(true); // Ouvre le modal pour l'édition
+    setNewTodo(task); // Pre-remplit les donnees existantes de la tache dans newTodo
+    setShowTodoModal(true); // Ouvre le modal pour l'edition
   };
   
 
@@ -193,11 +193,11 @@ const Todo = ({ chantierId }) => {
     try {
       const todosRef = collection(db, 'chantiers', chantierId, 'todos');
       if (selectedTodo) {
-        // Mode édition - Met à jour la tâche existante
+        // Mode edition - Met a jour la tache existante
         const todoRef = doc(db, 'chantiers', chantierId, 'todos', selectedTodo.id);
         await updateDoc(todoRef, newTodo);
       } else {
-        // Mode ajout - Ajoute une nouvelle tâche
+        // Mode ajout - Ajoute une nouvelle tache
         await addDoc(todosRef, {
           ...newTodo,
           creator: currentUser.email,
@@ -208,13 +208,13 @@ const Todo = ({ chantierId }) => {
           section: newTodo.section,
         });
       }
-      // Réinitialise les états
+      // Reinitialise les etats
       setNewTodo({ title: '', description: '', piece: '', interventionType: '', date: '', section: '', comments: [], assignees: [] });
       setShowTodoModal(false);
       setSelectedTodo(null);
       setStep(1);
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde de la tâche : ", error);
+      console.error("Erreur lors de la sauvegarde de la tache : ", error);
     }
   };
   
@@ -226,18 +226,18 @@ const Todo = ({ chantierId }) => {
       setSelectedTodo(null);
       setShowTodoModal(false);
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de la tâche : ", error);
+      console.error("Erreur lors de la mise a jour de la tache : ", error);
     }
   };
 
   const deleteTodo = async (todoId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+    if (window.confirm('Etes-vous sur de vouloir supprimer cette tache ?')) {
       try {
         const todoRef = doc(db, 'chantiers', chantierId, 'todos', todoId);
         await deleteDoc(todoRef);
         setTodos(todos.filter((todo) => todo.id !== todoId));
       } catch (error) {
-        console.error("Erreur lors de la suppression de la tâche : ", error);
+        console.error("Erreur lors de la suppression de la tache : ", error);
       }
     }
   };
@@ -247,28 +247,28 @@ const Todo = ({ chantierId }) => {
       <div className="flex justify-between items-center mb-4 flex-wrap md:flex-nowrap">
         <div className="flex space-x-2">
           <button
-            onClick={() => handleTabClick('Tâches personnelles')}
+            onClick={() => handleTabClick('Taches personnelles')}
             className={`py-1 px-4 rounded-full font-medium text-sm ${
-              activeTab === 'Tâches personnelles' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
+              activeTab === 'Taches personnelles' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
             }`}
           >
-            Tâches personnelles
+            Taches personnelles
           </button>
           <button
-            onClick={() => handleTabClick('Tâches terminées')}
+            onClick={() => handleTabClick('Taches terminees')}
             className={`py-1 px-4 rounded-full font-medium text-sm ${
-              activeTab === 'Tâches terminées' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
+              activeTab === 'Taches terminees' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
             }`}
           >
-            Tâches terminées
+            Taches terminees
           </button>
         </div>
-        {activeTab === 'Tâches personnelles' && (
+        {activeTab === 'Taches personnelles' && (
           <div className="flex space-x-2 mt-2 md:mt-0">
             <button
   className="bg-blue-500 text-white py-1 px-3 rounded-lg hover:bg-blue-600 transition duration-300 text-sm"
   onClick={() => {
-    // Réinitialise les étapes et les données du formulaire
+    // Reinitialise les etapes et les donnees du formulaire
     setShowTodoModal(true);
     setSelectedTodo(null);
     setNewTodo({ 
@@ -281,10 +281,10 @@ const Todo = ({ chantierId }) => {
       comments: [], 
       assignees: [] 
     });
-    setStep(1); // Réinitialise l'étape à 1
+    setStep(1); // Reinitialise l'etape a 1
   }}
 >
-  <FontAwesomeIcon icon={faPlus} /> Ajouter une tâche
+  <FontAwesomeIcon icon={faPlus} /> Ajouter une tache
 </button>
 
             <button
@@ -298,7 +298,7 @@ const Todo = ({ chantierId }) => {
       </div>
 
       <div className="hidden md:block">
-        {/* Affichage en mode liste pour les écrans moyens et grands */}
+        {/* Affichage en mode liste pour les ecrans moyens et grands */}
         {sections.map((section) => (
           <div key={section} className="mb-4">
             <div className="flex justify-between items-center">
@@ -318,7 +318,7 @@ const Todo = ({ chantierId }) => {
               <table className="w-full table-auto min-w-full border-collapse border border-gray-300 text-xs sm:text-sm mt-2">
                 <thead>
                   <tr className="bg-gray-200 text-gray-600">
-                    <th className="border border-gray-300 p-2 text-center">N°</th>
+                    <th className="border border-gray-300 p-2 text-center">Ndeg</th>
                     <th
       className="border border-gray-300 p-2 text-center cursor-pointer"
       onClick={() => handleSort('title')}
@@ -378,7 +378,7 @@ const Todo = ({ chantierId }) => {
   <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
   <td className="border border-gray-300 p-2 text-left">{task.title}</td>
   <td className="border border-gray-300 p-2 text-left">
-    {task.assignees ? task.assignees.join(', ') : 'Non assigné'}
+    {task.assignees ? task.assignees.join(', ') : 'Non assigne'}
   </td>
   <td className="border border-gray-300 p-2 text-center">
     {task.interventionType}
@@ -388,36 +388,36 @@ const Todo = ({ chantierId }) => {
   </td>
   <td className="border border-gray-300 p-2 text-center">
     <div className="flex justify-center space-x-1">
-       {/* Bouton pour visualiser les détails de la tâche */}
+       {/* Bouton pour visualiser les details de la tache */}
     <button
       className="bg-gray-600 text-white p-1 rounded hover:bg-gray-500"
       onClick={(event) => {
-        event.stopPropagation();  // Bloque la propagation de l'événement
-        openTaskDetails(task);    // Ouvre le modal de détails de la tâche
+        event.stopPropagation();  // Bloque la propagation de l'evenement
+        openTaskDetails(task);    // Ouvre le modal de details de la tache
       }}
       title="Voir"
     >
       <FontAwesomeIcon icon={faEye} />
     </button>
 
-    {/* Bouton pour modifier la tâche */}
+    {/* Bouton pour modifier la tache */}
     <button
       className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500"
       onClick={(event) => {
-        event.stopPropagation();  // Bloque la propagation de l'événement
-        openEditModal(task);      // Ouvre le modal d'édition de la tâche
+        event.stopPropagation();  // Bloque la propagation de l'evenement
+        openEditModal(task);      // Ouvre le modal d'edition de la tache
       }}
       title="Modifier"
     >
       <FontAwesomeIcon icon={faPencilAlt} />
     </button>
-      {/* Bouton pour supprimer la tâche */}
+      {/* Bouton pour supprimer la tache */}
       <button
         className="bg-red-600 text-white p-1 rounded hover:bg-red-500"
         onClick={(event) => {
           event.stopPropagation();
-          console.log("Suppression de la tâche");
-          deleteTodo(task.id); // Supprime la tâche
+          console.log("Suppression de la tache");
+          deleteTodo(task.id); // Supprime la tache
         }}
         title="Supprimer"
       >
@@ -437,7 +437,7 @@ const Todo = ({ chantierId }) => {
       </div>
 
       <div className="md:hidden grid grid-cols-1 gap-4">
-        {/* Affichage en mode cartes pour les écrans petits */}
+        {/* Affichage en mode cartes pour les ecrans petits */}
         {getFilteredTasks().map((task, index) => (
           <div key={task.id} className="bg-white shadow-md rounded-lg p-4">
 <td className="border border-gray-300 p-2 text-left">
@@ -445,17 +445,17 @@ const Todo = ({ chantierId }) => {
 </td>
 
             <p className="text-sm text-gray-600">{task.description}</p>
-            <p className="text-xs text-gray-500">Responsable: {task.assignees ? task.assignees.join(', ') : 'Non assigné'}</p>
+            <p className="text-xs text-gray-500">Responsable: {task.assignees ? task.assignees.join(', ') : 'Non assigne'}</p>
             
             <p className="text-xs text-gray-500">Date: {task.date ? new Date(task.date).toLocaleDateString() : '-'}</p>
             <div className="flex justify-end space-x-2 mt-2">
             <button
   className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500"
   onClick={(event) => {
-    event.stopPropagation(); // Empêche la propagation vers la ligne de la tâche
+    event.stopPropagation(); // Empeche la propagation vers la ligne de la tache
     setSelectedTodo(task); 
-    setNewTodo(task); // Pré-remplit les données existantes de la tâche dans newTodo
-    setShowTodoModal(true); // Ouvre uniquement le modal d'édition
+    setNewTodo(task); // Pre-remplit les donnees existantes de la tache dans newTodo
+    setShowTodoModal(true); // Ouvre uniquement le modal d'edition
   }}
   title="Modifier"
 >
@@ -475,16 +475,16 @@ const Todo = ({ chantierId }) => {
         ))}
       </div>
 
-      {/* Modals pour les tâches et les sections restent inchangés */}
+      {/* Modals pour les taches et les sections restent inchanges */}
       {showTodoModal && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
     <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
       <button className="absolute top-2 right-2 text-gray-500" onClick={() => setShowTodoModal(false)}>X</button>
       
-      {/* Étape 1 : Prendre une photo avec prévisualisation */}
+      {/* Etape 1 : Prendre une photo avec previsualisation */}
       {step === 1 && (
         <div>
-          <h3 className="text-xl font-semibold mb-4 text-center">Étape 1 : Prendre une photo</h3>
+          <h3 className="text-xl font-semibold mb-4 text-center">Etape 1 : Prendre une photo</h3>
           <input
             type="file"
             accept="image/*"
@@ -498,19 +498,19 @@ const Todo = ({ chantierId }) => {
           />
           {newTodo.photo && (
             <div className="mt-4">
-              <p>Prévisualisation :</p>
-              <img src={newTodo.photo} alt="Prévisualisation" className="w-full h-32 object-cover rounded" />
+              <p>Previsualisation :</p>
+              <img src={newTodo.photo} alt="Previsualisation" className="w-full h-32 object-cover rounded" />
             </div>
           )}
         </div>
       )}
 
-      {/* Étape 2 : Choisir le type d'action */}
+      {/* Etape 2 : Choisir le type d'action */}
       {step === 2 && (
         <div>
-          <h3 className="text-xl font-semibold mb-4 text-center">Étape 2 : Choisir le type d'action</h3>
+          <h3 className="text-xl font-semibold mb-4 text-center">Etape 2 : Choisir le type d'action</h3>
           <div className="flex flex-col space-y-2">
-            {['Intervention', 'Demande d\'offre', 'Décision'].map((type) => (
+            {['Intervention', 'Demande d\'offre', 'Decision'].map((type) => (
               <button
                 key={type}
                 className={`p-2 rounded ${newTodo.interventionType === type ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -523,24 +523,24 @@ const Todo = ({ chantierId }) => {
         </div>
       )}
 
-      {/* Étape 3 : Nommer la tâche */}
+      {/* Etape 3 : Nommer la tache */}
       {step === 3 && (
         <div>
-          <h3 className="text-xl font-semibold mb-4 text-center">Étape 3 : Nommer la tâche</h3>
+          <h3 className="text-xl font-semibold mb-4 text-center">Etape 3 : Nommer la tache</h3>
           <input
             type="text"
             className="w-full p-2 border rounded mb-3"
-            placeholder="Nom de la tâche"
+            placeholder="Nom de la tache"
             value={newTodo.title}
             onChange={(e) => setNewTodo({ ...newTodo, title: e.target.value })}
           />
         </div>
       )}
 
-      {/* Étape 4 : Description et détails */}
+      {/* Etape 4 : Description et details */}
       {step === 4 && (
         <div>
-          <h3 className="text-xl font-semibold mb-4 text-center">Étape 4 : Description et détails</h3>
+          <h3 className="text-xl font-semibold mb-4 text-center">Etape 4 : Description et details</h3>
           <textarea
             className="w-full p-2 border rounded mb-3"
             placeholder="Description"
@@ -557,7 +557,7 @@ const Todo = ({ chantierId }) => {
           <input
             type="number"
             className="w-full p-2 border rounded mb-3"
-            placeholder="Coût (ex: 650€)"
+            placeholder="Cout (ex: 650EUR)"
             value={newTodo.cost || ''}
             onChange={(e) => setNewTodo({ ...newTodo, cost: e.target.value })}
           />
@@ -570,11 +570,11 @@ const Todo = ({ chantierId }) => {
         </div>
       )}
 
-      {/* Étape 5 : Choisir le responsable parmi les intervenants */}
-      {/* Étape 5 : Choisir le responsable parmi les intervenants */}
+      {/* Etape 5 : Choisir le responsable parmi les intervenants */}
+      {/* Etape 5 : Choisir le responsable parmi les intervenants */}
 {step === 5 && (
   <div>
-    <h3 className="text-xl font-semibold mb-4 text-center">Étape 5 : Choisir le responsable</h3>
+    <h3 className="text-xl font-semibold mb-4 text-center">Etape 5 : Choisir le responsable</h3>
     <div className="flex flex-col space-y-2">
       {intervenants.map((intervenant) => (
         <button
@@ -597,29 +597,29 @@ const Todo = ({ chantierId }) => {
 )}
 
 
-      {/* Étape 6 : Aperçu de la tâche */}
+      {/* Etape 6 : Apercu de la tache */}
       {step === 6 && (
         <div>
-          <h3 className="text-xl font-semibold mb-4 text-center">Étape 6 : Aperçu de la tâche</h3>
+          <h3 className="text-xl font-semibold mb-4 text-center">Etape 6 : Apercu de la tache</h3>
           <p><strong>Titre :</strong> {newTodo.title}</p>
           <p><strong>Description :</strong> {newTodo.description}</p>
           <p><strong>Type :</strong> {newTodo.interventionType}</p>
-          <p><strong>Coût :</strong> {newTodo.cost}€</p>
+          <p><strong>Cout :</strong> {newTodo.cost}EUR</p>
           <p><strong>Date :</strong> {newTodo.date}</p>
           <p><strong>Responsable :</strong> {newTodo.assignees?.join(', ')}</p>
           {newTodo.photo && (
             <div className="mt-4">
               <p>Photo :</p>
-              <img src={newTodo.photo} alt="Prévisualisation finale" className="w-full h-32 object-cover rounded" />
+              <img src={newTodo.photo} alt="Previsualisation finale" className="w-full h-32 object-cover rounded" />
             </div>
           )}
         </div>
       )}
 
-      {/* Étape 7 : Sélectionner une section */}
+      {/* Etape 7 : Selectionner une section */}
 {step === 7 && (
   <div>
-    <h3 className="text-xl font-semibold mb-4 text-center">Étape 7 : Sélectionner une section</h3>
+    <h3 className="text-xl font-semibold mb-4 text-center">Etape 7 : Selectionner une section</h3>
     <select
       className="w-full p-2 border rounded mb-3"
       value={newTodo.section}
@@ -637,17 +637,17 @@ const Todo = ({ chantierId }) => {
   <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
   <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
     <button className="absolute top-2 right-2 text-gray-500" onClick={() => setShowTaskDetailsModal(false)}>X</button>
-    <h3 className="text-xl font-semibold mb-4 text-center">Détails de la tâche</h3>
+    <h3 className="text-xl font-semibold mb-4 text-center">Details de la tache</h3>
     <p><strong>Titre :</strong> {taskDetails?.title}</p>
     <p><strong>Description :</strong> {taskDetails?.description}</p>
     <p><strong>Type :</strong> {taskDetails?.interventionType}</p>
-    <p><strong>Coût :</strong> {taskDetails?.cost}€</p>
+    <p><strong>Cout :</strong> {taskDetails?.cost}EUR</p>
     <p><strong>Date :</strong> {taskDetails?.date}</p>
     <p><strong>Responsable :</strong> {taskDetails?.assignees?.join(', ')}</p>
     {taskDetails?.photo && (
       <div className="mt-4">
         <p>Photo :</p>
-        <img src={taskDetails.photo} alt="Prévisualisation" className="w-full h-32 object-cover rounded" />
+        <img src={taskDetails.photo} alt="Previsualisation" className="w-full h-32 object-cover rounded" />
       </div>
     )}
   </div>
@@ -664,14 +664,14 @@ const Todo = ({ chantierId }) => {
 <div className="flex justify-between mt-4">
   {step > 1 && (
     <button className="bg-gray-500 text-white py-1 px-4 rounded" onClick={() => setStep(step - 1)}>
-      Précédent
+      Precedent
     </button>
   )}
   {step < 7 ? (
     <button
       className="bg-blue-500 text-white py-1 px-4 rounded"
       onClick={() => {
-        console.log("Current Step:", step); // Debug pour vérifier l'incrémentation
+        console.log("Current Step:", step); // Debug pour verifier l'incrementation
         setStep(step + 1);
       }}
     >

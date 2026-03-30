@@ -6,21 +6,21 @@ import { collection, addDoc, getDocs, doc, deleteDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const FileManager = () => {
-  const [directories, setDirectories] = useState([]);  // Liste des répertoires
-  const [selectedDirectory, setSelectedDirectory] = useState(null);  // Répertoire sélectionné
-  const [newDirectoryName, setNewDirectoryName] = useState('');  // Nouveau répertoire
+  const [directories, setDirectories] = useState([]);  // Liste des repertoires
+  const [selectedDirectory, setSelectedDirectory] = useState(null);  // Repertoire selectionne
+  const [newDirectoryName, setNewDirectoryName] = useState('');  // Nouveau repertoire
   const [newDocument, setNewDocument] = useState(null);  // Nouveau document
-  const [documents, setDocuments] = useState([]);  // Documents dans un répertoire
+  const [documents, setDocuments] = useState([]);  // Documents dans un repertoire
   const user = auth.currentUser;  // Utilisateur actuel
 
-  // Charger les répertoires de l'utilisateur depuis Firestore
+  // Charger les repertoires de l'utilisateur depuis Firestore
   useEffect(() => {
     const loadDirectories = async () => {
       if (user) {
         const directoriesRef = collection(db, 'Utilisateurs', user.uid, 'directories');
         const snapshot = await getDocs(directoriesRef);
         if (snapshot.empty) {
-          const defaultDirectory = { name: 'Documents par défaut' };
+          const defaultDirectory = { name: 'Documents par defaut' };
           const docRef = await addDoc(directoriesRef, defaultDirectory);
           setDirectories([{ id: docRef.id, ...defaultDirectory }]);
         } else {
@@ -31,7 +31,7 @@ const FileManager = () => {
     loadDirectories();
   }, [user]);
 
-  // Ajouter un nouveau répertoire
+  // Ajouter un nouveau repertoire
   const addDirectory = async () => {
     if (newDirectoryName.trim() && user) {
       try {
@@ -41,12 +41,12 @@ const FileManager = () => {
         setDirectories([...directories, { id: docRef.id, ...directory }]);
         setNewDirectoryName('');
       } catch (error) {
-        console.error("Erreur lors de l'ajout du répertoire:", error);
+        console.error("Erreur lors de l'ajout du repertoire:", error);
       }
     }
   };
 
-  // Ajouter un document dans le répertoire sélectionné
+  // Ajouter un document dans le repertoire selectionne
   const addDocument = async () => {
     if (newDocument && selectedDirectory && user) {
       try {
@@ -72,7 +72,7 @@ const FileManager = () => {
     }
   };
 
-  // Charger les documents d'un répertoire
+  // Charger les documents d'un repertoire
   const loadDocuments = async (directory) => {
     if (user) {
       const documentsRef = collection(db, 'Utilisateurs', user.uid, 'directories', directory.id, 'documents');
@@ -88,9 +88,9 @@ const FileManager = () => {
       const storageRef = ref(storage, storagePath);
       await deleteObject(storageRef);  // Supprimer le fichier de Firebase Storage
       const docRef = doc(db, 'Utilisateurs', user.uid, 'directories', selectedDirectory.id, 'documents', docId);
-      await deleteDoc(docRef);  // Supprimer l'entrée dans Firestore
+      await deleteDoc(docRef);  // Supprimer l'entree dans Firestore
 
-      setDocuments(documents.filter(doc => doc.id !== docId));  // Mettre à jour la liste des documents
+      setDocuments(documents.filter(doc => doc.id !== docId));  // Mettre a jour la liste des documents
     } catch (error) {
       console.error("Erreur lors de la suppression du document:", error);
     }
@@ -98,15 +98,15 @@ const FileManager = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 bg-gray-50 shadow-sm rounded-lg">
-      <h2 className="text-lg font-light text-gray-800 mb-4">Gestion des Répertoires et Documents</h2>
+      <h2 className="text-lg font-light text-gray-800 mb-4">Gestion des Repertoires et Documents</h2>
 
-      {/* Ajouter un répertoire */}
+      {/* Ajouter un repertoire */}
       <div className="flex flex-col md:flex-row items-center mb-4 space-y-2 md:space-y-0">
         <input
           type="text"
           value={newDirectoryName}
           onChange={(e) => setNewDirectoryName(e.target.value)}
-          placeholder="Nouveau répertoire"
+          placeholder="Nouveau repertoire"
           className="flex-grow p-2 border border-gray-300 rounded-l-md text-sm bg-white"
         />
         <button
@@ -117,7 +117,7 @@ const FileManager = () => {
         </button>
       </div>
 
-      {/* Liste des répertoires */}
+      {/* Liste des repertoires */}
       <div className="flex flex-col space-y-2 mb-4">
         {directories.map(directory => (
           <div
@@ -133,7 +133,7 @@ const FileManager = () => {
         ))}
       </div>
 
-      {/* Documents dans le répertoire sélectionné */}
+      {/* Documents dans le repertoire selectionne */}
       {selectedDirectory && (
         <div>
           <h3 className="text-lg font-light text-gray-800 mb-3">{selectedDirectory.name}</h3>

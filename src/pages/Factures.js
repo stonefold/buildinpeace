@@ -43,7 +43,7 @@ const Factures = ({ chantierId, chantierName }) => {
     }
 
     if (isNaN(newInvoice.amount)) {
-      setError('Le montant doit être un nombre valide.');
+      setError('Le montant doit etre un nombre valide.');
       return;
     }
 
@@ -64,7 +64,7 @@ const Factures = ({ chantierId, chantierName }) => {
         amount: parseFloat(newInvoice.amount),
         status: newInvoice.status,
         pdf: pdfUrl,
-        statusColor: newInvoice.status === 'PAYÉ' ? 'bg-green-200' : 'bg-red-200',
+        statusColor: newInvoice.status === 'PAYE' ? 'bg-green-200' : 'bg-red-200',
       });
 
       setInvoices([...invoices, { id: docRef.id, ...newInvoice, pdf: pdfUrl }]);
@@ -107,11 +107,11 @@ const Factures = ({ chantierId, chantierName }) => {
             {error && <p className="text-red-500 mb-2">{error}</p>}
             
             <div className="space-y-2">
-              <input type="text" className="w-full p-2 border rounded" placeholder="Numéro" value={newInvoice.num} onChange={(e) => setNewInvoice({ ...newInvoice, num: e.target.value })} />
+              <input type="text" className="w-full p-2 border rounded" placeholder="Numero" value={newInvoice.num} onChange={(e) => setNewInvoice({ ...newInvoice, num: e.target.value })} />
               <input type="text" className="w-full p-2 border rounded" placeholder="Titre" value={newInvoice.title} onChange={(e) => setNewInvoice({ ...newInvoice, title: e.target.value })} />
               <input type="date" className="w-full p-2 border rounded" value={newInvoice.date} onChange={(e) => setNewInvoice({ ...newInvoice, date: e.target.value })} />
               <input type="text" className="w-full p-2 border rounded" placeholder="Montant" value={newInvoice.amount} onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })} />
-              <input type="text" className="w-full p-2 border rounded" placeholder="Statut (PAYÉ ou EN RETARD)" value={newInvoice.status} onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })} />
+              <input type="text" className="w-full p-2 border rounded" placeholder="Statut (PAYE ou EN RETARD)" value={newInvoice.status} onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })} />
               <input type="file" className="w-full p-2 border rounded" onChange={(e) => setNewInvoice({ ...newInvoice, pdfFile: e.target.files[0] })} />
             </div>
             
@@ -131,10 +131,10 @@ const Factures = ({ chantierId, chantierName }) => {
       <div className="block md:hidden space-y-2">
         {invoices.map((invoice, index) => (
           <div key={index} className="bg-gray-100 p-3 rounded shadow-md">
-            <p><strong>Numéro:</strong> {invoice.num}</p>
+            <p><strong>Numero:</strong> {invoice.num}</p>
             <p><strong>Titre:</strong> {invoice.title}</p>
             <p><strong>Date:</strong> {invoice.date}</p>
-            <p><strong>Montant:</strong> {parseFloat(invoice.amount).toLocaleString()} €</p>
+            <p><strong>Montant:</strong> {parseFloat(invoice.amount).toLocaleString()} EUR</p>
             <p><strong>Statut:</strong> <span className={invoice.statusColor}>{invoice.status}</span></p>
             <div className="flex justify-between mt-2">
               <a href={invoice.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center">
@@ -154,7 +154,7 @@ const Factures = ({ chantierId, chantierName }) => {
         <table className="w-full table-auto border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="bg-gray-200">
-              <th className="border p-2">Numéro</th>
+              <th className="border p-2">Numero</th>
               <th className="border p-2">Titre</th>
               <th className="border p-2">Date</th>
               <th className="border p-2">Montant</th>
@@ -169,7 +169,7 @@ const Factures = ({ chantierId, chantierName }) => {
                 <td className="border p-2 text-center">{invoice.num}</td>
                 <td className="border p-2">{invoice.title}</td>
                 <td className="border p-2">{invoice.date}</td>
-                <td className="border p-2 text-center">{parseFloat(invoice.amount).toLocaleString()} €</td>
+                <td className="border p-2 text-center">{parseFloat(invoice.amount).toLocaleString()} EUR</td>
                 <td className={`border p-2 text-center ${invoice.statusColor}`}>{invoice.status}</td>
                 <td className="border p-2 text-center">
                   <a href={invoice.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center justify-center">

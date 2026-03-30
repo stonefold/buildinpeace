@@ -1,9 +1,6 @@
-import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import supabase, { isSupabaseConfigured } from './supabase';
-import app from './firebaseApp';
 
 let currentUser = null;
-const db = getFirestore(app);
 
 const normalizeUser = (user) => {
   if (!user) return null;
@@ -21,65 +18,6 @@ const normalizeUser = (user) => {
     providerData: user.identities || [],
     rawUser: user,
   };
-};
-
-const upsertSupabaseUser = async (user) => {
-  if (!user) return;
-
-  const { error: usersError } = await supabase.from('users').upsert({
-    id: user.uid,
-    email: user.email,
-    display_name: user.displayName,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (usersError) {
-    console.error("Erreur lors de la synchronisation de l'utilisateur Supabase:", usersError);
-  }
-
-  const { error: profilesError } = await supabase.from('profiles').upsert({
-    user_id: user.uid,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (profilesError) {
-    console.error('Erreur lors de la synchronisation du profil Supabase:', profilesError);
-  }
-};
-
-const upsertFirebaseUser = async (user) => {
-  if (!user) return;
-
-  try {
-    const userRef = doc(db, 'Utilisateurs', user.uid);
-    const userDoc = await getDoc(userRef);
-
-    if (!userDoc.exists()) {
-      await setDoc(userRef, {
-        displayName: user.displayName,
-        email: user.email,
-        uid: user.uid,
-      });
-      return;
-    }
-
-    await setDoc(
-      userRef,
-      {
-        displayName: user.displayName,
-        email: user.email,
-        uid: user.uid,
-      },
-      { merge: true }
-    );
-  } catch (error) {
-    console.error("Erreur lors de la synchronisation de l'utilisateur Firebase:", error);
-  }
-};
-
-export const syncAuthenticatedUser = async (user) => {
-  if (!user) return;
-  await Promise.allSettled([upsertSupabaseUser(user), upsertFirebaseUser(user)]);
 };
 
 const setCurrentUser = (user) => {
@@ -108,13 +46,9 @@ export const auth = {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const normalizedUser = setCurrentUser(session?.user ?? null);
-      if (normalizedUser) {
-        await syncAuthenticatedUser(normalizedUser);
-      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isActive) {
-        callback(normalizedUser);
+        callback(setCurrentUser(session?.user ?? null));
       }
     });
 
@@ -133,12 +67,7 @@ export const getCurrentUser = async () => {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const normalizedUser = setCurrentUser(session?.user ?? null);
-  if (normalizedUser) {
-    await syncAuthenticatedUser(normalizedUser);
-  }
-
-  return normalizedUser;
+  return setCurrentUser(session?.user ?? null);
 };
 
 export const signInWithGoogle = async () => {
@@ -147,7 +76,7 @@ export const signInWithGoogle = async () => {
   }
 
   const redirectTo =
-    process.env.REACT_APP_SUPABASE_REDIRECT_URL || `${window.location.origin}/login`;
+    process.env.REACT_APP_SUPABASE_REDIRECT_URL || `${window.location.origin}/`;
 
   return supabase.auth.signInWithOAuth({
     provider: 'google',

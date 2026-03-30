@@ -8,19 +8,19 @@ import { faPlusCircle, faChevronDown, faChevronUp, faEye, faTrash } from '@forta
 const documentStructure = [
   {
     name: 'Plan',
-    subCategories: ['Plan généraux', 'Plan elec', 'Plan démo'],
+    subCategories: ['Plan generaux', 'Plan elec', 'Plan demo'],
   },
   {
     name: 'Fiches techniques',
-    subCategories: ['FT Stabilité', 'FT Elec', 'FT Sanitaire'],
+    subCategories: ['FT Stabilite', 'FT Elec', 'FT Sanitaire'],
   },
   {
     name: 'Cahier des charges',
-    subCategories: ['Maçonnerie', 'Electricité', 'Sanitaire'],
+    subCategories: ['Maconnerie', 'Electricite', 'Sanitaire'],
   },
   {
     name: 'PV de chantier',
-    subCategories: ['PV Gros œuvre', 'PV Second œuvre'],
+    subCategories: ['PV Gros oeuvre', 'PV Second oeuvre'],
   },
   {
     name: 'Photos',
@@ -108,7 +108,7 @@ const Documents = ({ chantierId }) => {
         'state_changed',
         (snapshot) => {},
         (error) => {
-          console.error('Erreur lors du téléversement:', error);
+          console.error('Erreur lors du televersement:', error);
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -159,7 +159,7 @@ const Documents = ({ chantierId }) => {
       </h2>
 
       <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-700 mb-2">Catégories</h3>
+        <h3 className="text-lg font-bold text-gray-700 mb-2">Categories</h3>
         <div className="mb-4 w-full">
           <select
             onChange={handleCategoryChange}
@@ -224,7 +224,7 @@ const Documents = ({ chantierId }) => {
                             <td className="border p-2">
                               <span
                                 className={`px-2 py-1 rounded ${
-                                  doc.status === 'Validé' ? 'bg-green-100' : 'bg-red-100'
+                                  doc.status === 'Valide' ? 'bg-green-100' : 'bg-red-100'
                                 }`}
                               >
                                 {doc.status}

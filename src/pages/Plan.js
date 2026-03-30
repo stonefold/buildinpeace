@@ -21,15 +21,15 @@ const Plan = ({ chantierId }) => {
   const [selectedShapeId, setSelectedShapeId] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [previewMode, setPreviewMode] = useState(true);
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // Variable pour contrôler l'ouverture du menu
-  const containerRef = useRef(null); // Référence pour le conteneur de Stage
-  const [versions, setVersions] = useState([]); // Liste des versions sauvegardées
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // Variable pour controler l'ouverture du menu
+  const containerRef = useRef(null); // Reference pour le conteneur de Stage
+  const [versions, setVersions] = useState([]); // Liste des versions sauvegardees
 
 
   const stageRef = useRef(null);
   const layerRef = useRef(null);
   const transformerRef = useRef(null);
-  // Définir handleResize en dehors de useEffect pour qu'il soit disponible dans tout le composant
+  // Definir handleResize en dehors de useEffect pour qu'il soit disponible dans tout le composant
 const handleResize = () => {
   if (stageRef.current && image) {
     const containerWidth = window.innerWidth * 0.95;
@@ -55,15 +55,15 @@ const loadVersion = (index) => {
   const version = versions[index];
   setImage(() => {
     const img = new window.Image();
-    img.src = version.uri; // Récupère l'URI de la version
+    img.src = version.uri; // Recupere l'URI de la version
     img.crossOrigin = 'anonymous';
-    img.onload = () => setImage(img); // Définit l'image après le chargement
+    img.onload = () => setImage(img); // Definit l'image apres le chargement
     return img;
   });
   setShapes(version.shapes);
   setLines(version.lines);
   setAnnotations(version.annotations);
-  console.log(`Version ${index + 1} chargée`);
+  console.log(`Version ${index + 1} chargee`);
 };
 
 
@@ -147,12 +147,12 @@ useEffect(() => {
         setImage(img);
         setPreviewMode(false);
   
-        // Crée la "Version 0" et ajuste sa taille
+        // Cree la "Version 0" et ajuste sa taille
         if (versions.length === 0) {
           setVersions([{ uri: img.src, shapes: [], lines: [], annotations: [] }]);
         }
   
-        // Forcer le redimensionnement après le chargement de l'image
+        // Forcer le redimensionnement apres le chargement de l'image
         handleResize();
       };
     }
@@ -225,23 +225,23 @@ useEffect(() => {
         await updateDoc(doc(db, 'chantiers', chantierId), {
           planUrls: [...fileList, url],
         });
-        alert('Plan téléchargé et enregistré avec succès !');
+        alert('Plan telecharge et enregistre avec succes !');
       } catch (error) {
         console.error('Erreur lors de l\'upload du fichier :', error);
-        alert('Erreur lors du téléchargement du fichier.');
+        alert('Erreur lors du telechargement du fichier.');
       }
     } else {
-      alert('Veuillez sélectionner un fichier.');
+      alert('Veuillez selectionner un fichier.');
     }
   };
 
   const handleDeletePlan = async (url) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce plan ?')) {
+    if (window.confirm('Etes-vous sur de vouloir supprimer ce plan ?')) {
       try {
         const fileRef = ref(storage, url);
         await deleteObject(fileRef);
         setFileList(fileList.filter((file) => file !== url));
-        alert('Plan supprimé avec succès.');
+        alert('Plan supprime avec succes.');
       } catch (error) {
         console.error('Erreur lors de la suppression du fichier :', error);
         alert('Erreur lors de la suppression du fichier.');
@@ -318,7 +318,7 @@ useEffect(() => {
         id: `text-${annotations.length}`,
         x: transformedPos.x,
         y: transformedPos.y,
-        text: 'Double-cliquez pour éditer',
+        text: 'Double-cliquez pour editer',
         fontSize: 20,
         fill: lineColor,
         draggable: true,
@@ -368,7 +368,7 @@ useEffect(() => {
     setShapes([]);
     setAnnotations([]);
     setSelectedShapeId(null);
-    console.log('Tous les éléments ont été effacés');
+    console.log('Tous les elements ont ete effaces');
   };
 
   const handleDeleteSelectedShape = () => {
@@ -387,7 +387,7 @@ useEffect(() => {
   const saveDrawing = () => {
     const uri = stageRef.current.toDataURL();
     setVersions([...versions, { uri, shapes, lines, annotations }]);
-    console.log('Nouvelle version sauvegardée');
+    console.log('Nouvelle version sauvegardee');
   };
   
 
@@ -398,7 +398,7 @@ useEffect(() => {
           <h3 className="text-lg font-bold mb-4">Liste des plans</h3>
           <input type="file" onChange={handleFileChange} className="mb-2" />
           <button onClick={uploadFile} className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-500 mt-2">
-            Télécharger
+            Telecharger
           </button>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
             {fileList.map((url, index) => (
@@ -420,9 +420,9 @@ useEffect(() => {
         </div>
       ) : (
         <div ref={containerRef} className="flex flex-col md:flex-row">
-  {/* Panneau des versions sauvegardées avec style amélioré */}
+  {/* Panneau des versions sauvegardees avec style ameliore */}
   <div className="version-container w-full md:w-1/4 md:ml-4 mb-4 md:mb-0 bg-white p-3 rounded-lg shadow border border-gray-200">
-    <h3 className="text-lg font-bold mb-4">Versions sauvegardées</h3>
+    <h3 className="text-lg font-bold mb-4">Versions sauvegardees</h3>
     <div className="grid grid-cols-2 gap-2">
       {versions.map((version, index) => (
         <div
@@ -442,7 +442,7 @@ useEffect(() => {
     <div className="flex flex-wrap items-center justify-center md:justify-start gap-1 p-2 bg-gray-100 shadow-inner rounded-lg mb-4">
       {/* Boutons d'outils compacts */}
       <button onClick={() => setTool('select')} className={`p-1 ${tool === 'select' ? 'bg-blue-500 text-white' : 'bg-white'} shadow rounded`}>
-        <FontAwesomeIcon icon={faShapes} title="Sélection" />
+        <FontAwesomeIcon icon={faShapes} title="Selection" />
       </button>
       <button onClick={() => setTool('pen')} className={`p-1 ${tool === 'pen' ? 'bg-blue-500 text-white' : 'bg-white'} shadow rounded`}>
         <FontAwesomeIcon icon={faPencilAlt} title="Crayon" />
@@ -457,7 +457,7 @@ useEffect(() => {
         <FontAwesomeIcon icon={faCircle} title="Cercle" />
       </button>
       <button onClick={() => setTool('arrow')} className={`p-1 ${tool === 'arrow' ? 'bg-blue-500 text-white' : 'bg-white'} shadow rounded`}>
-        <FontAwesomeIcon icon={faArrowRight} title="Flèche" />
+        <FontAwesomeIcon icon={faArrowRight} title="Fleche" />
       </button>
       <button onClick={() => setTool('text')} className={`p-1 ${tool === 'text' ? 'bg-blue-500 text-white' : 'bg-white'} shadow rounded`}>
         <FontAwesomeIcon icon={faTextHeight} title="Texte" />
@@ -469,7 +469,7 @@ useEffect(() => {
         <FontAwesomeIcon icon={faSave} title="Sauvegarder" />
       </button>
       <button onClick={handleDeleteSelectedShape} className="p-1 bg-red-500 text-white shadow rounded">
-        <FontAwesomeIcon icon={faTrash} title="Supprimer l'élément" />
+        <FontAwesomeIcon icon={faTrash} title="Supprimer l'element" />
       </button>
       <button
         onClick={() => {

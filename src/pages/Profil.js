@@ -51,7 +51,7 @@ const Profile = () => {
       if (currentUser) {
         const profileRef = doc(db, 'Utilisateurs', currentUser.uid, 'Profiles', 'profileData');
         await setDoc(profileRef, profileData);
-        alert('Profil enregistré avec succès !');
+        alert('Profil enregistre avec succes !');
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du profil : ', error);
@@ -66,7 +66,7 @@ const Profile = () => {
         <form className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Prénom</label>
+              <label className="block text-sm font-medium text-gray-700">Prenom</label>
               <input
                 type="text"
                 name="firstName"
@@ -96,7 +96,7 @@ const Profile = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Métier</label>
+              <label className="block text-sm font-medium text-gray-700">Metier</label>
               <input
                 type="text"
                 name="occupation"
@@ -106,7 +106,7 @@ const Profile = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Numéro de téléphone</label>
+              <label className="block text-sm font-medium text-gray-700">Numero de telephone</label>
               <input
                 type="text"
                 name="phoneNumber"
@@ -116,7 +116,7 @@ const Profile = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Numéro de TVA</label>
+              <label className="block text-sm font-medium text-gray-700">Numero de TVA</label>
               <input
                 type="text"
                 name="vatNumber"

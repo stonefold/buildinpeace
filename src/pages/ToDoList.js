@@ -11,7 +11,7 @@ const TodoList = () => {
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [sections, setSections] = useState([]);
   const [sectionOpen, setSectionOpen] = useState({});
-  const [activeTab, setActiveTab] = useState('Tâches assignées');
+  const [activeTab, setActiveTab] = useState('Taches assignees');
   const [newSectionName, setNewSectionName] = useState('');
   const [newTodo, setNewTodo] = useState({
     title: '',
@@ -74,20 +74,20 @@ const TodoList = () => {
   }, [currentUser]);
 
   const tabs = [
-    { name: 'Tâches assignées' },
-    { name: 'Tâches personnelles' },
-    { name: 'Tâches terminées' },
+    { name: 'Taches assignees' },
+    { name: 'Taches personnelles' },
+    { name: 'Taches terminees' },
   ];
 
   const handleTabClick = (tabName) => setActiveTab(tabName);
 
   const getFilteredTasks = () => {
     switch (activeTab) {
-      case 'Tâches assignées':
+      case 'Taches assignees':
         return assignedTasks;
-      case 'Tâches personnelles':
+      case 'Taches personnelles':
         return todos.filter(task => !task.completed);
-      case 'Tâches terminées':
+      case 'Taches terminees':
         return todos.filter(task => task.completed);
       default:
         return [];
@@ -120,11 +120,11 @@ const TodoList = () => {
   const deleteSection = async (section) => {
     const hasTodos = todos.some((todo) => todo.section === section);
     if (hasTodos) {
-      alert("Vous ne pouvez pas supprimer une section contenant des tâches.");
+      alert("Vous ne pouvez pas supprimer une section contenant des taches.");
       return;
     }
 
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la section "${section}" ?`)) {
+    if (window.confirm(`Etes-vous sur de vouloir supprimer la section "${section}" ?`)) {
       try {
         const userRef = doc(db, 'Utilisateurs', currentUser.uid);
         await updateDoc(userRef, {
@@ -156,7 +156,7 @@ const TodoList = () => {
         alert("Veuillez remplir au moins le champ 'Titre'.");
       }
     } catch (error) {
-      console.error("Erreur lors de l'ajout de la tâche : ", error);
+      console.error("Erreur lors de l'ajout de la tache : ", error);
     }
   };
 
@@ -186,15 +186,15 @@ const TodoList = () => {
       setSelectedTodo(null);
       setIsEditing(false);
       setShowTodoModal(false);
-      alert("La tâche a été mise à jour avec succès.");
+      alert("La tache a ete mise a jour avec succes.");
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de la tâche : ", error);
-      alert("Une erreur est survenue lors de la mise à jour de la tâche.");
+      console.error("Erreur lors de la mise a jour de la tache : ", error);
+      alert("Une erreur est survenue lors de la mise a jour de la tache.");
     }
   };
 
   const deleteTodo = async (taskId, taskType) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+    if (window.confirm('Etes-vous sur de vouloir supprimer cette tache ?')) {
       try {
         const taskRef = taskType === 'personal'
           ? doc(db, 'Utilisateurs', currentUser.uid, 'tasks', taskId)
@@ -203,7 +203,7 @@ const TodoList = () => {
         await deleteDoc(taskRef);
         setTodos(todos.filter((task) => task.id !== taskId));
       } catch (error) {
-        console.error("Erreur lors de la suppression de la tâche : ", error);
+        console.error("Erreur lors de la suppression de la tache : ", error);
       }
     }
   };
@@ -273,13 +273,13 @@ const TodoList = () => {
           ))}
         </div>
 
-        {activeTab === 'Tâches personnelles' && (
+        {activeTab === 'Taches personnelles' && (
           <div className="flex space-x-2 mt-2 md:mt-0">
             <button
               className="bg-blue-500 text-white py-1 px-3 rounded-lg hover:bg-blue-600 transition duration-300 text-sm"
               onClick={() => { setShowTodoModal(true); setIsEditing(false); setSelectedTodo(null); }}
             >
-              <FontAwesomeIcon icon={faPlus} /> Ajouter une tâche
+              <FontAwesomeIcon icon={faPlus} /> Ajouter une tache
             </button>
             <button
               className="bg-green-500 text-white py-1 px-3 rounded-lg hover:bg-green-600 transition duration-300 text-sm"
@@ -292,11 +292,11 @@ const TodoList = () => {
       </div>
 
       <div className="hidden md:block">
-        {/* Mode liste pour les écrans moyens et grands */}
+        {/* Mode liste pour les ecrans moyens et grands */}
         <table className="w-full border-collapse border border-gray-300 text-sm">
           <thead className="bg-gray-200">
             <tr>
-              <th className="border border-gray-300 p-2">N°</th>
+              <th className="border border-gray-300 p-2">Ndeg</th>
               <th className="border border-gray-300 p-2">Titre</th>
               <th className="border border-gray-300 p-2">Responsable</th>
               <th className="border border-gray-300 p-2">Type</th>
@@ -309,7 +309,7 @@ const TodoList = () => {
               <tr key={task.id} className="hover:bg-gray-100">
                 <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
                 <td className="border border-gray-300 p-2">{task.title}</td>
-                <td className="border border-gray-300 p-2">{task.assignees ? task.assignees.join(', ') : 'Non assigné'}</td>
+                <td className="border border-gray-300 p-2">{task.assignees ? task.assignees.join(', ') : 'Non assigne'}</td>
                 <td className="border border-gray-300 p-2 text-center">{task.interventionType}</td>
                 <td className="border border-gray-300 p-2 text-center">
                   {task.date ? new Date(task.date).toLocaleDateString() : '-'}
@@ -318,8 +318,8 @@ const TodoList = () => {
   <div className="flex space-x-2 justify-center">
     <button
       className="bg-gray-600 text-white p-1 rounded hover:bg-gray-500"
-      onClick={() => { setSelectedTodo(task); setShowAssignedModal(true); }} // Affiche le modal de détail
-      title="Voir les détails"
+      onClick={() => { setSelectedTodo(task); setShowAssignedModal(true); }} // Affiche le modal de detail
+      title="Voir les details"
     >
       <FontAwesomeIcon icon={faEye} />
     </button>
@@ -339,14 +339,14 @@ const TodoList = () => {
       </div>
 
       <div className="block md:hidden grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Mode carte pour les petits écrans */}
+        {/* Mode carte pour les petits ecrans */}
         {getFilteredTasks().map((task, index) => (
           <div key={task.id} className="bg-white p-4 rounded-lg shadow-md border border-gray-300">
             <h4 className="text-lg font-semibold mb-2">{task.title}</h4>
             <p className="text-sm text-gray-700 mb-1">{task.description}</p>
-            <p className="text-xs text-gray-500 mb-1">Responsable: {task.assignees ? task.assignees.join(', ') : 'Non assigné'}</p>
+            <p className="text-xs text-gray-500 mb-1">Responsable: {task.assignees ? task.assignees.join(', ') : 'Non assigne'}</p>
             <p className="text-xs text-gray-500 mb-1">Date: {task.date ? new Date(task.date).toLocaleDateString() : '-'}</p>
-            <p className={`text-xs font-bold ${task.status === 'Terminé' ? 'text-green-600' : 'text-yellow-500'}`}>Type {task.interventionType}</p>
+            <p className={`text-xs font-bold ${task.status === 'Termine' ? 'text-green-600' : 'text-yellow-500'}`}>Type {task.interventionType}</p>
             <div className="flex space-x-2 justify-end mt-2">
               <button
                 className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500"
@@ -367,13 +367,13 @@ const TodoList = () => {
         ))}
       </div>
 
-      {/* Modal pour ajouter ou modifier une tâche */}
+      {/* Modal pour ajouter ou modifier une tache */}
       {showTodoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
             <button className="absolute top-2 right-2 text-gray-500" onClick={() => setShowTodoModal(false)}>X</button>
             <h3 className="text-xl font-semibold mb-4 text-center">
-              {isEditing ? 'Modifier la tâche' : 'Ajouter une nouvelle tâche'}
+              {isEditing ? 'Modifier la tache' : 'Ajouter une nouvelle tache'}
             </h3>
             <input
               type="text"
@@ -403,7 +403,7 @@ const TodoList = () => {
             <input
               type="text"
               className="w-full p-2 border rounded mb-3"
-              placeholder="Pièce"
+              placeholder="Piece"
               value={isEditing ? selectedTodo?.piece : newTodo.piece}
               onChange={(e) => {
                 if (isEditing) {
@@ -449,7 +449,7 @@ const TodoList = () => {
                 }
               }}
             >
-              <option value="">Sélectionner une section</option>
+              <option value="">Selectionner une section</option>
               {sections.map((section, index) => (
                 <option key={index} value={section}>{section}</option>
               ))}
@@ -463,7 +463,7 @@ const TodoList = () => {
                 className="bg-green-500 text-white py-1 px-4 rounded"
                 onClick={isEditing ? updateTodo : addTodo}
               >
-                {isEditing ? 'Mettre à jour' : 'Ajouter'}
+                {isEditing ? 'Mettre a jour' : 'Ajouter'}
               </button>
             </div>
           </div>
@@ -497,10 +497,10 @@ const TodoList = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4 overflow-y-auto">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-6xl relative">
             <button className="absolute top-2 right-2 text-gray-500" onClick={() => setShowAssignedModal(false)}>X</button>
-            <h3 className="text-xl font-semibold mb-4 text-center">Détails de la tâche</h3>
+            <h3 className="text-xl font-semibold mb-4 text-center">Details de la tache</h3>
             <p><strong>Titre:</strong> {selectedTodo?.title}</p>
             <p><strong>Description:</strong> {selectedTodo?.description}</p>
-            <p><strong>Pièce:</strong> {selectedTodo?.piece}</p>
+            <p><strong>Piece:</strong> {selectedTodo?.piece}</p>
             <p><strong>Type d'intervention:</strong> {selectedTodo?.interventionType}</p>
             <p><strong>Date:</strong> {new Date(selectedTodo?.date).toLocaleDateString()}</p>
             <p><strong>Statut:</strong> {selectedTodo?.interventionType}</p>

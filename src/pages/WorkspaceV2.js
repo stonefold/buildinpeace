@@ -25,12 +25,15 @@ import {
   faUserPlus,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons';
-import { demoWorkspace } from '../data/demoData';
+import { emptyWorkspace } from '../data/workspaceDefaults';
+import { useWorkspaceData } from '../hooks/useWorkspaceData';
+
+let demoWorkspace = emptyWorkspace;
 
 const primaryNav = [
   { id: 'overview', label: 'Pilotage', icon: faLayerGroup },
   { id: 'projects', label: 'Chantiers', icon: faBuilding },
-  { id: 'tasks', label: 'T\u00e2ches', icon: faClipboardList },
+  { id: 'tasks', label: 'Taches', icon: faClipboardList },
   { id: 'messages', label: 'Messages', icon: faComments },
   { id: 'friends', label: 'Amis', icon: faUserFriends },
   { id: 'profile', label: 'Profil', icon: faUserGear },
@@ -40,7 +43,7 @@ const chantierTabs = [
   { id: 'Administratif', label: 'Administratif', icon: faFileCircleCheck },
   { id: 'Documents', label: 'Documents', icon: faFolderOpen },
   { id: 'Plan', label: 'Plan', icon: faLayerGroup },
-  { id: 'Taches', label: 'T\u00e2ches', icon: faClipboardList },
+  { id: 'Taches', label: 'Taches', icon: faClipboardList },
   { id: 'Acteurs', label: 'Acteurs', icon: faUsers },
 ];
 
@@ -131,6 +134,22 @@ const rolePermissions = {
   },
 };
 
+const tabPermissionMap = {
+  Administratif: 'viewAdmin',
+  Documents: 'viewDocuments',
+  Plan: 'viewPlans',
+  Taches: 'viewTasks',
+  Acteurs: 'viewActors',
+};
+
+const permissionOptions = [
+  { key: 'viewAdmin', label: 'Administratif' },
+  { key: 'viewDocuments', label: 'Documents' },
+  { key: 'viewPlans', label: 'Plan' },
+  { key: 'viewTasks', label: 'Taches' },
+  { key: 'viewActors', label: 'Acteurs' },
+];
+
 const initialProjectForm = {
   name: '',
   client: '',
@@ -165,7 +184,7 @@ const initialDocumentForm = {
   subcategory: '',
   name: '',
   version: 'v1',
-  status: 'Publi\u00e9',
+  status: 'Publie',
   fileName: '',
 };
 
@@ -185,10 +204,10 @@ const planToolPresets = [
   { id: 'prise', label: 'Prise', short: 'PR', type: 'marker', color: '#2563eb' },
   { id: 'electricite', label: 'Elec', short: 'ELC', type: 'marker', color: '#d97706' },
   { id: 'interrupteur', label: 'Inter.', short: 'INT', type: 'marker', color: '#0f766e' },
-  { id: 'luminaire', label: 'Lumière', short: 'LUM', type: 'marker', color: '#d97706' },
+  { id: 'luminaire', label: 'Lumiere', short: 'LUM', type: 'marker', color: '#d97706' },
   { id: 'eau', label: 'Eau', short: 'EAU', type: 'marker', color: '#0284c7' },
-  { id: 'evacuation', label: 'Évac.', short: 'EV', type: 'marker', color: '#7c3aed' },
-  { id: 'reserve', label: 'Réserve', short: 'RSV', type: 'marker', color: '#dc2626' },
+  { id: 'evacuation', label: 'Evac.', short: 'EV', type: 'marker', color: '#7c3aed' },
+  { id: 'reserve', label: 'Reserve', short: 'RSV', type: 'marker', color: '#dc2626' },
   { id: 'cercle', label: 'Cercle', short: 'O', type: 'circle', color: '#dc2626' },
   { id: 'cote', label: 'Cote', short: 'C', type: 'text', color: '#1f2937', text: 'Cote' },
   { id: 'zone', label: 'Zone', short: 'ZN', type: 'rect', color: '#2563eb' },
@@ -196,80 +215,86 @@ const planToolPresets = [
 ];
 
 const getNormalizedRole = (role) => roleAliases[role] ?? role ?? '';
-const getProjectActorConversations = (project) => {
-  if (!project) {
-    return [];
-  }
-
-  const currentUserName = demoWorkspace.user.name;
-  const generalConversation = {
-    id: 'general-site',
-    name: 'Discussion générale',
-    participants: project.participants.length,
-    unread: 2,
-    preview: 'Canal commun pour tout le chantier.',
-    private: false,
-  };
-
-  const privateConversations = project.participants
-    .filter((participant) => participant.name !== currentUserName)
-    .map((participant) => ({
-      id: `actor-${participant.id}`,
-      name: participant.name,
-      participants: 2,
-      unread: 0,
-      preview: `Discussion privée avec ${participant.name}`,
-      private: true,
-      roleLabel: getNormalizedRole(participant.role),
-    }));
-
-  const baseConversations = [generalConversation, ...privateConversations];
-  const baseConversationIds = new Set(baseConversations.map((conversation) => conversation.id));
-  const extraConversations = (project.conversations ?? []).filter((conversation) => !baseConversationIds.has(conversation.id));
-
-  return [...baseConversations, ...extraConversations];
-};
 const taskStatusOptions = [
-  { id: '\u00c0 faire', label: '\u00c0 faire' },
+  { id: 'A faire', label: 'A faire' },
   { id: 'En cours', label: 'En cours' },
-  { id: 'Termin\u00e9e', label: 'Termin\u00e9es' },
+  { id: 'Terminee', label: 'Terminees' },
 ];
 
 const getTaskStatus = (task) => {
-  if (task.status === 'Termin\u00e9e' || task.completed) {
-    return 'Termin\u00e9e';
+  if (task.status === 'Terminee' || task.completed) {
+    return 'Terminee';
   }
   if (task.status === 'En cours') {
     return 'En cours';
   }
-  return '\u00c0 faire';
+  return 'A faire';
+};
+
+const getTaskStatusBadgeClass = (task) => {
+  const status = getTaskStatus(task);
+  if (status === 'Terminee') return 'pill-task-done';
+  if (status === 'En cours') return 'pill-task-progress';
+  return 'pill-task-todo';
+};
+
+const getTaskPriorityLabel = (priority) => {
+  if (priority === 'Haute' || priority === 'Urgent') return 'Urgent';
+  if (priority === 'Moyenne' || priority === 'Basse' || priority === 'Pas urgent') return 'Pas urgent';
+  return priority || 'Pas urgent';
+};
+
+const getTaskPriorityBadgeClass = (priority) => {
+  if (getTaskPriorityLabel(priority) === 'Urgent') return 'pill-priority-urgent';
+  return 'pill-priority-neutral';
+};
+
+const getTaskPriorityRibbonClass = (priority) => {
+  if (getTaskPriorityLabel(priority) === 'Urgent') return 'task-priority-banner priority-urgent';
+  return 'task-priority-banner priority-neutral';
+};
+
+const getTaskStatusToneClass = (status) => {
+  if (status === 'Terminee') return 'task-tone-done';
+  if (status === 'En cours') return 'task-tone-progress';
+  return 'task-tone-todo';
 };
 
 const updateTaskStatus = (task, status) => ({
   ...task,
   status,
-  completed: status === 'Termin\u00e9e',
+  completed: status === 'Terminee',
 });
 
-function WorkspaceV2() {
-  const workspaceRole = getNormalizedRole(demoWorkspace.user.role);
-  const workspacePermissions = rolePermissions[workspaceRole] ?? {};
-  const [projects, setProjects] = useState(demoWorkspace.projects);
-  const [currentUserProfile, setCurrentUserProfile] = useState({
-    name: demoWorkspace.user.name,
-    role: demoWorkspace.user.role,
-    company: demoWorkspace.user.company,
-    email: demoWorkspace.user.email,
-    phone: demoWorkspace.user.phone,
-    city: demoWorkspace.user.city,
-    avatarUrl: demoWorkspace.user.avatarUrl ?? '',
-    status: demoWorkspace.user.status ?? 'En ligne',
-    summary: 'Coordination generale, suivi chantier, echanges partenaires et validation des etapes cles.',
-    specialty: 'Coordination chantier',
-    availability: 'Disponible en journee',
-    zone: 'Bruxelles et Brabant wallon',
-    website: 'www.buildinpeace.be',
-  });
+const buildPermissionsForRole = (role) => {
+  const roleConfig = rolePermissions[getNormalizedRole(role)] ?? {};
+  const tabs = roleConfig.tabs ?? [];
+  return {
+    ...roleConfig,
+    viewAdmin: tabs.includes('Administratif'),
+    viewDocuments: tabs.includes('Documents'),
+    viewPlans: tabs.includes('Plan'),
+    viewTasks: tabs.includes('Taches'),
+    viewActors: tabs.includes('Acteurs'),
+    archiveProject: roleConfig.manageAccess ?? false,
+    archiveTask: roleConfig.updateTask ?? false,
+    archiveDocument: (roleConfig.addDocument || roleConfig.addAdminDoc) ?? false,
+    archivePlan: roleConfig.addPlan ?? false,
+  };
+};
+
+const mergePermissions = (role, customPermissions = {}) => ({
+  ...buildPermissionsForRole(role),
+  ...(customPermissions ?? {}),
+});
+
+function WorkspaceV2({ onSignOut }) {
+  const { workspace, isLoading, error, actions } = useWorkspaceData();
+  demoWorkspace = workspace;
+  const workspaceRole = getNormalizedRole(workspace.user.role);
+  const workspacePermissions = buildPermissionsForRole(workspaceRole);
+  const [projects, setProjects] = useState([]);
+  const [currentUserProfile, setCurrentUserProfile] = useState(emptyWorkspace.user);
   const [activeSection, setActiveSection] = useState('projects');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState(null);
@@ -282,7 +307,7 @@ function WorkspaceV2() {
   const [newProjectParticipant, setNewProjectParticipant] = useState(initialProjectParticipantForm);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'Entrepreneur' });
-  const [taskView, setTaskView] = useState('À faire');
+  const [taskView, setTaskView] = useState('A faire');
   const [taskLayout, setTaskLayout] = useState('list');
   const [openSections, setOpenSections] = useState({});
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -295,11 +320,62 @@ function WorkspaceV2() {
     dueDate: '',
     section: '',
     assignees: [],
-    priority: 'Moyenne',
+    priority: 'Pas urgent',
   });
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
+  const [isInvitationCenterOpen, setIsInvitationCenterOpen] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
+  const [localFriendInvitations, setLocalFriendInvitations] = useState([]);
+  const [localFriends, setLocalFriends] = useState([]);
+  const [localDirectMessages, setLocalDirectMessages] = useState([]);
+
+  useEffect(() => {
+    setProjects(workspace.projects);
+  }, [workspace.projects]);
+
+  useEffect(() => {
+    setCurrentUserProfile(workspace.user);
+  }, [workspace.user]);
+
+  useEffect(() => {
+    setLocalFriends([]);
+    setLocalDirectMessages([]);
+    setLocalFriendInvitations([]);
+  }, [workspace.user.id]);
+
+  const availableFriends = useMemo(() => {
+    const map = new Map();
+    [...(workspace.friends ?? []), ...localFriends].forEach((friend) => {
+      map.set(friend.id || friend.email, friend);
+    });
+    return [...map.values()];
+  }, [localFriends, workspace.friends]);
+
+  const availableDirectMessages = useMemo(() => {
+    const map = new Map();
+    [...(workspace.directMessages ?? []), ...localDirectMessages].forEach((conversation) => {
+      map.set(conversation.id, conversation);
+    });
+    return [...map.values()];
+  }, [localDirectMessages, workspace.directMessages]);
+
+  const startupScreen = isLoading ?(
+    <main className="workspace-auth-screen">
+      <section className="workspace-auth-card">
+        <h1>Build In Peace</h1>
+        <p>Chargement du workspace...</p>
+      </section>
+    </main>
+  ) : error ?(
+    <main className="workspace-auth-screen">
+      <section className="workspace-auth-card">
+        <h1>Build In Peace</h1>
+        <p>{error.message || 'Impossible de charger les donnees.'}</p>
+      </section>
+    </main>
+  ) : null;
 
   const activeProject = useMemo(
     () => projects.find((project) => project.id === activeProjectId) ?? null,
@@ -317,15 +393,16 @@ function WorkspaceV2() {
     if (!currentRole) {
       return [];
     }
-    return rolePermissions[currentRole]?.tabs ?? [];
-  }, [currentRole]);
+    const permissions = mergePermissions(currentRole, currentParticipant?.permissions);
+    return chantierTabs.filter((tab) => permissions[tabPermissionMap[tab.id]]).map((tab) => tab.id);
+  }, [currentParticipant?.permissions, currentRole]);
 
   const projectPermissions = useMemo(() => {
     if (!currentRole) {
       return {};
     }
-    return rolePermissions[currentRole] ?? {};
-  }, [currentRole]);
+    return mergePermissions(currentRole, currentParticipant?.permissions);
+  }, [currentParticipant?.permissions, currentRole]);
 
   useEffect(() => {
     if (!availableTabs.length) {
@@ -368,45 +445,143 @@ function WorkspaceV2() {
     setActiveSection('projects');
   };
 
-  const openPrivateDiscussionWithFriend = (friend) => {
-    const fallbackProject = activeProject ?? projects[0];
-    if (!fallbackProject) {
+  const openPrivateDiscussionWithFriend = async (friend) => {
+    if (friend.localOnly) {
+      const localConversationId = friend.conversationId || `local-conversation-${friend.id}`;
+      setLocalDirectMessages((current) => {
+        if (current.some((item) => item.id === localConversationId)) return current;
+        return [
+          {
+            id: localConversationId,
+            name: friend.name,
+            preview: 'Discussion demarree.',
+            unread: 0,
+            messages: [],
+          },
+          ...current,
+        ];
+      });
+      setPreferredConversationId(localConversationId);
+      setActiveSection('messages');
       return;
     }
 
-    const conversationId = `friend-${friend.id}`;
-    const conversationName = friend.name;
-    const preview = `Discussion privée avec ${friend.name}`;
+    if (!workspace.organization?.id || !workspace.user.id) {
+      return;
+    }
 
-    setProjects((currentProjects) => currentProjects.map((project) => {
-      if (project.id !== fallbackProject.id) {
-        return project;
-      }
+    const conversationId = await actions.ensureDirectConversation({
+      organizationId: workspace.organization?.id,
+      currentUserId: workspace.user.id,
+      projectId: null,
+      friend,
+    });
 
-      const existingConversation = project.conversations.find((conversation) => conversation.id === conversationId);
-      if (existingConversation) {
-        return project;
-      }
-
-      return {
-        ...project,
-        conversations: [
-          {
-            id: conversationId,
-            name: conversationName,
-            participants: 2,
-            unread: 0,
-            preview,
-            private: true,
-          },
-          ...project.conversations,
-        ],
-      };
-    }));
-
-    setActiveProjectId(fallbackProject.id);
     setPreferredConversationId(conversationId);
     setActiveSection('messages');
+  };
+
+  const sendDirectMessage = async (payload) => {
+    if (String(payload.conversationId || '').startsWith('local-conversation-')) {
+      const time = new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+      setLocalDirectMessages((current) =>
+        current.map((conversation) =>
+          conversation.id !== payload.conversationId
+            ? conversation
+            : {
+                ...conversation,
+                preview: payload.text || (payload.file ? payload.file.name : conversation.preview),
+                messages: [
+                  ...(conversation.messages ?? []),
+                  {
+                    id: `${conversation.id}-${Date.now()}`,
+                    author: currentUserProfile.name || 'Vous',
+                    text: payload.text || (payload.file ? `Piece jointe : ${payload.file.name}` : ''),
+                    time,
+                    own: true,
+                    status: 'Envoye',
+                    attachment: payload.file
+                      ? {
+                          name: payload.file.name,
+                          kind: payload.file.type?.startsWith('image/') ? 'image' : 'file',
+                          sizeLabel: `${Math.max(1, Math.round(payload.file.size / 1024))} Ko`,
+                          url: URL.createObjectURL(payload.file),
+                        }
+                      : null,
+                  },
+                ],
+              }
+        )
+      );
+      return true;
+    }
+
+    return actions.sendMessage(payload);
+  };
+
+  const inviteFriend = ({ name, email, trade }) => {
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanName || !cleanEmail) return;
+
+    setLocalFriendInvitations((current) => [
+      {
+        id: `friend-invite-${Date.now()}`,
+        name: cleanName,
+        email: cleanEmail,
+        trade: trade.trim() || 'Partenaire',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+  };
+
+  const respondToFriendInvitation = (inviteId, decision) => {
+    const invite = localFriendInvitations.find((item) => item.id === inviteId);
+    if (!invite) return;
+
+    if (decision === 'accepted') {
+      const friendId = `friend-${Date.now()}`;
+      const conversationId = `local-conversation-${friendId}`;
+      const friend = {
+        id: friendId,
+        conversationId,
+        localOnly: true,
+        userId: null,
+        name: invite.name,
+        trade: invite.trade || 'Partenaire',
+        status: 'En ligne',
+        email: invite.email,
+        company: 'Invitation acceptee',
+      };
+
+      setLocalFriends((current) => [friend, ...current.filter((item) => item.email !== invite.email)]);
+      setLocalDirectMessages((current) => [
+        {
+          id: conversationId,
+          name: invite.name,
+          preview: 'Discussion demarree.',
+          unread: 0,
+          messages: [
+            {
+              id: `${conversationId}-welcome`,
+              author: invite.name,
+              text: 'Merci pour l invitation, on peut echanger ici.',
+              time: new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }),
+              own: false,
+              status: null,
+              attachment: null,
+            },
+          ],
+        },
+        ...current.filter((item) => item.id !== conversationId),
+      ]);
+      setPreferredConversationId(conversationId);
+      setActiveSection('messages');
+    }
+
+    setLocalFriendInvitations((current) => current.filter((item) => item.id !== inviteId));
   };
 
   const moveProject = (projectId, direction) => {
@@ -486,9 +661,9 @@ function WorkspaceV2() {
         id: `participant-${Date.now()}`,
         name: newProjectParticipant.name.trim(),
         email: newProjectParticipant.email.trim(),
-        company: newProjectParticipant.company.trim() || 'Entreprise à préciser',
+        company: newProjectParticipant.company.trim() || 'Entreprise a preciser',
         role: getNormalizedRole(newProjectParticipant.role),
-        status: 'Invité',
+        status: 'Invite',
       },
     ]);
     setNewProjectParticipant(initialProjectParticipantForm);
@@ -500,7 +675,7 @@ function WorkspaceV2() {
     );
   };
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     const { name, client, site, budget, startDate, endDate, sectionsInput } = newProject;
     const existingProject = projects.find((project) => project.id === editingProjectId) ?? null;
     if (!name.trim() || !projectParticipants.length || !site.trim() || !startDate || !endDate) {
@@ -515,30 +690,36 @@ function WorkspaceV2() {
     const createdProject = {
       id: editingProjectId ?? `project-${Date.now()}`,
       name: name.trim(),
-      client: client.trim() || 'Client à préciser',
+      client: client.trim() || 'Client a preciser',
       site: site.trim(),
       status: existingProject?.status ?? 'Preparation',
       progress: existingProject?.progress ?? 0,
-      budget: budget.trim() || 'À définir',
+      budget: budget.trim() || 'A definir',
       startDate,
       endDate,
       period: `${startDate} -> ${endDate}`,
       participants: projectParticipants.map(({ locked, email, ...participant }) => participant),
-      sections: normalizedSections.length ? normalizedSections : ['Général chantier'],
+      sections: normalizedSections.length ? normalizedSections : ['General chantier'],
       adminDocs: existingProject?.adminDocs ?? [],
       documents: existingProject?.documents ?? [],
       plans: existingProject?.plans ?? [],
       tasks: existingProject?.tasks ?? [],
       conversations: existingProject?.conversations ?? [],
-      timeline: existingProject?.timeline ?? [{ id: `timeline-${Date.now()}`, label: 'Chantier créé', date: startDate, tone: 'info' }],
+      timeline: existingProject?.timeline ?? [{ id: `timeline-${Date.now()}`, label: 'Chantier cree', date: startDate, tone: 'info' }],
     };
 
     setProjects((currentProjects) =>
       editingProjectId
-        ? currentProjects.map((project) => (project.id === editingProjectId ? createdProject : project))
+        ?currentProjects.map((project) => (project.id === editingProjectId ?createdProject : project))
         : [createdProject, ...currentProjects]
     );
     setActiveProjectId(createdProject.id);
+    await actions.saveProject({
+      projectForm: { ...newProject, sectionsInput: normalizedSections.join(', ') },
+      participants: projectParticipants.map(({ locked, ...participant }) => participant),
+      editingProjectId,
+      currentUserProfile,
+    });
     setActiveProjectTab('Administratif');
     setNewProject(initialProjectForm);
     setProjectParticipants([]);
@@ -548,7 +729,7 @@ function WorkspaceV2() {
     setIsCreateModalOpen(false);
   };
 
-  const handleInvite = () => {
+  const handleInvite = async () => {
     if (!projectPermissions.inviteParticipant || !inviteForm.email.trim() || !activeProject) {
       return;
     }
@@ -566,12 +747,18 @@ function WorkspaceV2() {
                   name: inviteForm.email,
                   role: getNormalizedRole(inviteForm.role),
                   company: 'Invitation en attente',
-                  status: 'Invité',
+                  status: 'Invite',
                 },
               ],
             }
       )
     );
+
+    await actions.inviteProjectMember({
+      projectId: activeProject.id,
+      email: inviteForm.email.trim(),
+      role: inviteForm.role,
+    });
 
     setInviteForm({ email: '', role: 'Entrepreneur' });
     setIsInviteModalOpen(false);
@@ -581,7 +768,7 @@ function WorkspaceV2() {
     setOpenSections((current) => ({ ...current, [section]: !current[section] }));
   };
 
-  const addSection = () => {
+  const addSection = async () => {
     if (!projectPermissions.createSection || !newSectionName.trim() || !activeProject) {
       return;
     }
@@ -592,12 +779,13 @@ function WorkspaceV2() {
           : { ...project, sections: [...project.sections, newSectionName] }
       )
     );
+    await actions.addProjectSection(activeProject.id, newSectionName.trim());
     setOpenSections((current) => ({ ...current, [newSectionName]: true }));
     setNewSectionName('');
     setIsSectionModalOpen(false);
   };
 
-  const saveTask = () => {
+  const saveTask = async () => {
     if (!projectPermissions.createTask || !activeProject || !newTask.title.trim() || !newTask.section) {
       return;
     }
@@ -610,13 +798,34 @@ function WorkspaceV2() {
       section: newTask.section,
       assignees: newTask.assignees,
       priority: newTask.priority,
-      status: 'À faire',
+      status: 'A faire',
       completed: false,
       archived: false,
     };
     setProjects((currentProjects) =>
       currentProjects.map((project) => (project.id !== activeProject.id ?project : { ...project, tasks: [...project.tasks, task] }))
     );
+    const assigneeIdsByName = Object.fromEntries(
+      (activeProject.participants ?? []).map((participant) => [
+        participant.name,
+        { userId: participant.userId, displayName: participant.name },
+      ])
+    );
+    const result = await actions.createProjectTask({
+      projectId: activeProject.id,
+      organizationId: activeProject.organizationId,
+      task,
+      sectionIdMap: activeProject.sectionIdMap || {},
+      assigneeIdsByName,
+    });
+    if (result === null) {
+      setProjects((currentProjects) =>
+        currentProjects.map((project) =>
+          project.id !== activeProject.id ?project : { ...project, tasks: project.tasks.filter((item) => item.id !== task.id) }
+        )
+      );
+      return;
+    }
     setNewTask({
       title: '',
       description: '',
@@ -624,14 +833,142 @@ function WorkspaceV2() {
       dueDate: '',
       section: '',
       assignees: [],
-      priority: 'Moyenne',
+      priority: 'Pas urgent',
     });
     setTaskStep(1);
     setIsTaskModalOpen(false);
   };
 
-  const toggleTaskCompleted = (taskId, nextStatus = null) => {
+  const toggleTaskCompleted = async (taskId, nextStatus = null) => {
     if (!projectPermissions.updateTask || !activeProject) {
+      return;
+    }
+    const nextTask = activeProject.tasks.find((task) => task.id === taskId);
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id !== activeProject.id
+          ?project
+          : {
+              ...project,
+              tasks: project.tasks.map((task) =>
+                task.id !== taskId
+                  ?task
+                  : updateTaskStatus(task, nextStatus ?? (getTaskStatus(task) === 'Terminee' ? 'A faire' : 'Terminee'))
+              ),
+            }
+      )
+    );
+    if (nextTask) {
+      await actions.updateTask({
+        taskId,
+        updates: {
+          status: nextStatus ?? (getTaskStatus(nextTask) === 'Terminee' ? 'A faire' : 'Terminee'),
+        },
+        projectId: activeProject.id,
+        sectionIdMap: {},
+      });
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    if (!projectPermissions.deleteTask || !activeProject) {
+      return;
+    }
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id !== activeProject.id ?project : { ...project, tasks: project.tasks.filter((task) => task.id !== taskId) }
+      )
+    );
+    await actions.deleteTask(taskId);
+  };
+
+  const updateTask = async (taskId, updates) => {
+    if (!activeProject) {
+      return;
+    }
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id !== activeProject.id
+          ?project
+          : {
+              ...project,
+              tasks: project.tasks.map((task) => (task.id !== taskId ?task : { ...task, ...updates })),
+            }
+      )
+    );
+    await actions.updateTask({ taskId, updates, projectId: activeProject.id, sectionIdMap: activeProject.sectionIdMap || {} });
+  };
+
+  const upsertAdminDoc = async (doc) => {
+    if (!activeProject) {
+      return;
+    }
+    const nextDoc = { ...doc, id: doc.id ?? `ad-${Date.now()}` };
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id !== activeProject.id
+          ?project
+          : {
+              ...project,
+              adminDocs: doc.id
+                ?project.adminDocs.map((item) => (item.id === doc.id ?nextDoc : item))
+                : [nextDoc, ...project.adminDocs],
+            }
+      )
+    );
+    await actions.upsertAdminDocument({ projectId: activeProject.id, doc });
+  };
+
+  const upsertDocument = async (doc) => {
+    if (!activeProject) {
+      return;
+    }
+    const nextDoc = { ...doc, id: doc.id ?? `doc-${Date.now()}` };
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id !== activeProject.id
+          ?project
+          : {
+              ...project,
+              documents: doc.id
+                ?project.documents.map((item) => (item.id === doc.id ?nextDoc : item))
+                : [nextDoc, ...project.documents],
+            }
+      )
+    );
+    await actions.upsertProjectDocument({ projectId: activeProject.id, doc });
+  };
+
+  const upsertPlan = async (plan) => {
+    if (!activeProject) {
+      return;
+    }
+    const nextPlan = { ...plan, id: plan.id ?? `pl-${Date.now()}` };
+    setProjects((currentProjects) =>
+      currentProjects.map((project) =>
+        project.id !== activeProject.id
+          ?project
+          : {
+              ...project,
+              plans: plan.id
+                ?project.plans.map((item) => (item.id === plan.id ?nextPlan : item))
+                : [nextPlan, ...project.plans],
+            }
+      )
+    );
+    await actions.upsertPlan({ projectId: activeProject.id, plan });
+  };
+
+  const toggleProjectArchived = async (projectId, archived) => {
+    setProjects((currentProjects) => currentProjects.map((project) => (project.id !== projectId ?project : { ...project, archived })));
+    await actions.archiveProject(projectId, archived);
+    if (archived && activeProjectId === projectId) {
+      closeProject();
+    }
+  };
+
+  const toggleTaskArchived = async (taskId, archived) => {
+    if (!activeProject) {
       return;
     }
     setProjects((currentProjects) =>
@@ -642,100 +979,17 @@ function WorkspaceV2() {
               ...project,
               tasks: project.tasks.map((task) =>
                 task.id !== taskId
-                  ? task
-                  : updateTaskStatus(task, nextStatus ?? (getTaskStatus(task) === 'Terminée' ? 'À faire' : 'Terminée'))
+                  ?task
+                  : { ...task, archived, status: archived ? 'Terminee' : task.status }
               ),
             }
       )
     );
+    await actions.archiveTask({ taskId, archived, projectId: activeProject.id });
   };
 
-  const deleteTask = (taskId) => {
-    if (!projectPermissions.deleteTask || !activeProject) {
-      return;
-    }
-    setProjects((currentProjects) =>
-      currentProjects.map((project) =>
-        project.id !== activeProject.id ?project : { ...project, tasks: project.tasks.filter((task) => task.id !== taskId) }
-      )
-    );
-  };
-
-  const updateTask = (taskId, updates) => {
+  const toggleDocumentArchived = async (documentId, archived, collection) => {
     if (!activeProject) {
-      return;
-    }
-    setProjects((currentProjects) =>
-      currentProjects.map((project) =>
-        project.id !== activeProject.id
-          ? project
-          : {
-              ...project,
-              tasks: project.tasks.map((task) => (task.id !== taskId ? task : { ...task, ...updates })),
-            }
-      )
-    );
-  };
-
-  const upsertAdminDoc = (doc) => {
-    if (!activeProject) {
-      return;
-    }
-    const nextDoc = { ...doc, id: doc.id ?? `ad-${Date.now()}` };
-    setProjects((currentProjects) =>
-      currentProjects.map((project) =>
-        project.id !== activeProject.id
-          ? project
-          : {
-              ...project,
-              adminDocs: doc.id
-                ? project.adminDocs.map((item) => (item.id === doc.id ? nextDoc : item))
-                : [nextDoc, ...project.adminDocs],
-            }
-      )
-    );
-  };
-
-  const upsertDocument = (doc) => {
-    if (!activeProject) {
-      return;
-    }
-    const nextDoc = { ...doc, id: doc.id ?? `doc-${Date.now()}` };
-    setProjects((currentProjects) =>
-      currentProjects.map((project) =>
-        project.id !== activeProject.id
-          ? project
-          : {
-              ...project,
-              documents: doc.id
-                ? project.documents.map((item) => (item.id === doc.id ? nextDoc : item))
-                : [nextDoc, ...project.documents],
-            }
-      )
-    );
-  };
-
-  const upsertPlan = (plan) => {
-    if (!activeProject) {
-      return;
-    }
-    const nextPlan = { ...plan, id: plan.id ?? `pl-${Date.now()}` };
-    setProjects((currentProjects) =>
-      currentProjects.map((project) =>
-        project.id !== activeProject.id
-          ? project
-          : {
-              ...project,
-              plans: plan.id
-                ? project.plans.map((item) => (item.id === plan.id ? nextPlan : item))
-                : [nextPlan, ...project.plans],
-            }
-      )
-    );
-  };
-
-  const updateParticipantRole = (participantId, role) => {
-    if (!projectPermissions.manageAccess || !activeProject) {
       return;
     }
     setProjects((currentProjects) =>
@@ -744,34 +998,72 @@ function WorkspaceV2() {
           ?project
           : {
               ...project,
-              participants: project.participants.map((participant) =>
-                participant.id !== participantId ?participant : { ...participant, role: getNormalizedRole(role) }
-              ),
+              [collection]: project[collection].map((doc) => (doc.id !== documentId ?doc : { ...doc, archived })),
             }
       )
     );
+    await actions.archiveDocument({ documentId, archived, projectId: activeProject.id });
   };
 
-  const removeParticipant = (participantId) => {
-    if (!projectPermissions.manageAccess || !activeProject) {
+  const togglePlanArchived = async (planId, archived) => {
+    if (!activeProject) {
       return;
     }
     setProjects((currentProjects) =>
       currentProjects.map((project) =>
         project.id !== activeProject.id
           ?project
-          : {
-              ...project,
-              participants: project.participants.filter(
-                (participant) => participant.id !== participantId || participant.name === demoWorkspace.user.name
-              ),
-            }
+          : { ...project, plans: project.plans.map((plan) => (plan.id !== planId ?plan : { ...plan, archived })) }
       )
     );
+    await actions.archivePlan({ planId, archived, projectId: activeProject.id });
   };
 
-  return (
-    <div className={`app-shell workspace-shell ${isSidebarOpen ?'is-sidebar-open' : ''}`}>
+  const respondToInvitation = async (invitationId, decision) => {
+    await actions.respondToInvitation({ invitationId, decision });
+  };
+
+  const saveAccessChanges = async (draftParticipants) => {
+    if (!activeProject) {
+      return;
+    }
+
+    const currentParticipants = activeProject.participants ?? [];
+    const currentById = new Map(currentParticipants.map((participant) => [participant.id, participant]));
+    const draftById = new Map(draftParticipants.map((participant) => [participant.id, participant]));
+
+    setProjects((currentProjects) =>
+      currentProjects.map((project) => (project.id !== activeProject.id ?project : { ...project, participants: draftParticipants }))
+    );
+
+    for (const participant of currentParticipants) {
+      if (!draftById.has(participant.id) && participant.name !== demoWorkspace.user.name) {
+        await actions.removeProjectMember(participant.id);
+      }
+    }
+
+    for (const participant of draftParticipants) {
+      const currentParticipant = currentById.get(participant.id);
+      if (!currentParticipant) {
+        continue;
+      }
+
+      if (getNormalizedRole(currentParticipant.role) !== getNormalizedRole(participant.role)) {
+        await actions.updateProjectMemberRole(participant.id, participant.role);
+      }
+
+      const currentPermissions = currentParticipant.permissions ?? {};
+      const nextPermissions = participant.permissions ?? {};
+      if (JSON.stringify(currentPermissions) !== JSON.stringify(nextPermissions)) {
+        await actions.updateProjectMemberPermissions(participant.id, nextPermissions);
+      }
+    }
+
+    setIsAccessModalOpen(false);
+  };
+
+  return startupScreen || (
+    <div className={`app-shell workspace-shell ${isSidebarOpen ? 'is-sidebar-open' : ''}`}>
       <aside
         className="sidebar"
         onMouseEnter={() => setIsSidebarOpen(true)}
@@ -812,8 +1104,14 @@ function WorkspaceV2() {
       </aside>
 
       <main className="workspace-main">
+        <div className="workspace-top-actions">
+          <button type="button" className="secondary-button compact" onClick={() => setIsInvitationCenterOpen(true)}>
+            Invitations
+            <span className="pill pill-electric">{workspace.pendingInvitations.filter((item) => item.status === 'pending').length}</span>
+          </button>
+        </div>
         <section className="content-grid">
-          {activeSection === 'overview' && <OverviewSection project={activeProject ?? projects[0]} />}
+          {activeSection === 'overview' && <OverviewSection project={activeProject ?? projects[0]} stats={workspace.stats} />}
           {activeSection === 'projects' && (
             <ProjectsSection
               activeProject={activeProject}
@@ -828,6 +1126,10 @@ function WorkspaceV2() {
               onBack={closeProject}
               onEditProject={openEditProject}
               onCreateProject={openCreateProject}
+              onArchiveDocument={toggleDocumentArchived}
+              onArchivePlan={togglePlanArchived}
+              onArchiveProject={toggleProjectArchived}
+              onArchiveTask={toggleTaskArchived}
               onDeleteTask={deleteTask}
               onInvite={() => setIsInviteModalOpen(true)}
               onMoveProject={moveProject}
@@ -835,6 +1137,7 @@ function WorkspaceV2() {
               onOpenSectionModal={() => setIsSectionModalOpen(true)}
               onOpenTaskModal={() => setIsTaskModalOpen(true)}
               onOpenAccessModal={() => setIsAccessModalOpen(true)}
+              onOpenProjectInfo={() => setIsProjectInfoOpen(true)}
               onSaveAdminDoc={upsertAdminDoc}
               onSaveDocument={upsertDocument}
               onSavePlan={upsertPlan}
@@ -855,24 +1158,44 @@ function WorkspaceV2() {
               projects={projects}
             />
           )}
-          {activeSection === 'tasks' && <TasksSection project={activeProject ?? projects[0]} projects={projects} />}
+          {activeSection === 'tasks' && (
+            <TasksSection
+              project={activeProject ?? projects[0]}
+              projects={projects}
+              personalTasks={workspace.personalTasks}
+              organizationId={workspace.organization?.id}
+              onSavePersonalTask={(task) => actions.savePersonalTask({ task, organizationId: workspace.organization?.id })}
+              onUpdateTask={actions.updateTask}
+              onDeleteTask={actions.deleteTask}
+            />
+          )}
           {activeSection === 'messages' && (
             <MessagesSection
-              project={activeProject ?? projects[0]}
+              directMessages={availableDirectMessages}
+              friends={availableFriends}
               preferredConversationId={preferredConversationId}
+              currentUserName={currentUserProfile.name}
+              onSendMessage={sendDirectMessage}
+              onOpenPrivateDiscussion={openPrivateDiscussionWithFriend}
             />
           )}
           {activeSection === 'friends' && (
             <FriendsSection
+              friends={availableFriends}
+              invitations={localFriendInvitations}
               currentUserStatus={currentUserProfile.status}
               onChangeCurrentUserStatus={(status) => setCurrentUserProfile((current) => ({ ...current, status }))}
+              onInviteFriend={inviteFriend}
               onOpenPrivateDiscussion={openPrivateDiscussionWithFriend}
+              onRespondToInvitation={respondToFriendInvitation}
             />
           )}
           {activeSection === 'profile' && (
             <ProfileSection
               profileForm={currentUserProfile}
               onChangeProfile={setCurrentUserProfile}
+              onSaveProfile={(profile, avatarFile) => actions.saveProfile(profile, avatarFile)}
+              onSignOut={onSignOut}
             />
           )}
         </section>
@@ -899,7 +1222,7 @@ function WorkspaceV2() {
                   <p className="eyebrow">{editingProjectId ? 'Modifier' : 'Nouveau chantier'}</p>
                   <h3>{editingProjectId ? 'Modifier le chantier' : 'Ajouter un chantier'}</h3>
                 </div>
-                <span className="pill pill-electric">Étape {createStep}/4</span>
+                <span className="pill pill-electric">Etape {createStep}/4</span>
               </div>
 
               {createStep === 1 && (
@@ -908,7 +1231,7 @@ function WorkspaceV2() {
                     <span>Nom du chantier</span>
                     <input
                       type="text"
-                      placeholder="Ex. Rénovation maison Lambert"
+                      placeholder="Ex. Renovation maison Lambert"
                       value={newProject.name}
                       onChange={(event) => setNewProject((current) => ({ ...current, name: event.target.value }))}
                     />
@@ -950,7 +1273,7 @@ function WorkspaceV2() {
                       />
                     </label>
                     <label className="field">
-                      <span>Rôle</span>
+                      <span>Role</span>
                       <select
                         value={newProjectParticipant.role}
                         onChange={(event) =>
@@ -978,7 +1301,7 @@ function WorkspaceV2() {
                           <strong>{participant.name}</strong>
                           <span>
                             {participant.role}
-                            {participant.company ? ` • ${participant.company}` : ''}
+                            {participant.company ?`  -  ${participant.company}` : ''}
                           </span>
                         </div>
                         {participant.locked ?(
@@ -1026,7 +1349,7 @@ function WorkspaceV2() {
                     />
                   </label>
                   <label className="field">
-                    <span>Date de début</span>
+                    <span>Date de debut</span>
                     <input
                       type="date"
                       value={newProject.startDate}
@@ -1045,7 +1368,7 @@ function WorkspaceV2() {
                     <span>Sections du chantier</span>
                     <input
                       type="text"
-                      placeholder="Ex. Gros œuvre, Cuisine, Façade"
+                      placeholder="Ex. Gros oeuvre, Cuisine, Facade"
                       value={newProject.sectionsInput}
                       onChange={(event) =>
                         setNewProject((current) => ({ ...current, sectionsInput: event.target.value }))
@@ -1067,7 +1390,7 @@ function WorkspaceV2() {
                   </div>
                   <div className="summary-row">
                     <span>Client</span>
-                    <strong>{newProject.client || 'À préciser'}</strong>
+                    <strong>{newProject.client || 'A preciser'}</strong>
                   </div>
                   <div className="summary-row">
                     <span>Site</span>
@@ -1075,17 +1398,17 @@ function WorkspaceV2() {
                   </div>
                   <div className="summary-row">
                     <span>Budget</span>
-                    <strong>{newProject.budget || 'À définir'}</strong>
+                    <strong>{newProject.budget || 'A definir'}</strong>
                   </div>
                   <div className="summary-row">
-                    <span>Période</span>
+                    <span>Periode</span>
                     <strong>
                       {newProject.startDate || '-'} -> {newProject.endDate || '-'}
                     </strong>
                   </div>
                   <div className="summary-row">
                     <span>Sections</span>
-                    <strong>{newProject.sectionsInput || 'Général chantier'}</strong>
+                    <strong>{newProject.sectionsInput || 'General chantier'}</strong>
                   </div>
                 </div>
               )}
@@ -1096,7 +1419,7 @@ function WorkspaceV2() {
                   className="secondary-button"
                   onClick={() => (createStep === 1 ?setIsCreateModalOpen(false) : setCreateStep((step) => step - 1))}
                 >
-                  {createStep === 1 ? 'Annuler' : 'Précédent'}
+                  {createStep === 1 ? 'Annuler' : 'Precedent'}
                 </button>
                 {createStep < 4 ?(
                   <button
@@ -1114,7 +1437,7 @@ function WorkspaceV2() {
                 ) : (
                   <button type="button" className="action-button" onClick={handleCreateProject}>
                     <FontAwesomeIcon icon={faPlus} />
-                    {editingProjectId ? 'Enregistrer le chantier' : 'Créer le chantier'}
+                    {editingProjectId ? 'Enregistrer le chantier' : 'Creer le chantier'}
                   </button>
                 )}
               </div>
@@ -1141,7 +1464,7 @@ function WorkspaceV2() {
                   />
                 </label>
                 <label className="field">
-                  <span>Rôle</span>
+                  <span>Role</span>
                   <select
                     value={inviteForm.role}
                     onChange={(event) => setInviteForm((current) => ({ ...current, role: event.target.value }))}
@@ -1171,19 +1494,27 @@ function WorkspaceV2() {
           <AccessManagementModal
             currentUserName={demoWorkspace.user.name}
             onClose={() => setIsAccessModalOpen(false)}
-            onRemoveParticipant={removeParticipant}
-            onUpdateParticipantRole={updateParticipantRole}
+            onSave={saveAccessChanges}
             participants={activeProject.participants}
           />
         )}
+
+        {isProjectInfoOpen && activeProject ?<ProjectInfoModal onClose={() => setIsProjectInfoOpen(false)} project={activeProject} /> : null}
+        {isInvitationCenterOpen ?(
+          <InvitationCenterModal
+            invitations={workspace.pendingInvitations}
+            onClose={() => setIsInvitationCenterOpen(false)}
+            onRespond={respondToInvitation}
+          />
+        ) : null}
 
         {isSectionModalOpen && activeProject && (
           <div className="modal-backdrop" role="dialog" aria-modal="true">
             <div className="modal-card light-modal">
               <div className="panel-heading compact">
                 <div>
-                  <p className="eyebrow">Nouvelle tâche</p>
-                  <h3>Ajouter une tâche</h3>
+                  <p className="eyebrow">Nouvelle tache</p>
+                  <h3>Ajouter une tache</h3>
                 </div>
               </div>
               <div className="form-grid">
@@ -1210,10 +1541,10 @@ function WorkspaceV2() {
             <div className="modal-card light-modal">
               <div className="panel-heading compact">
                 <div>
-                  <p className="eyebrow">Nouvelle tâche</p>
-                  <h3>Ajouter une tâche</h3>
+                  <p className="eyebrow">Nouvelle tache</p>
+                  <h3>Ajouter une tache</h3>
                 </div>
-                <span className="pill pill-electric">Étape {taskStep}/4</span>
+                <span className="pill pill-electric">Etape {taskStep}/4</span>
               </div>
 
               {taskStep === 1 && (
@@ -1248,18 +1579,17 @@ function WorkspaceV2() {
                       <option value="">Choisir</option>
                       <option value="Intervention">Intervention</option>
                       <option value="Demande d'offre">Demande d'offre</option>
-                      <option value="Décision">Décision</option>
+                      <option value="Decision">Decision</option>
                     </select>
                   </label>
                   <label className="field">
-                    <span>Priorité</span>
+                    <span>Priorite</span>
                     <select
                       value={newTask.priority}
                       onChange={(event) => setNewTask((current) => ({ ...current, priority: event.target.value }))}
                     >
-                      <option value="Basse">Basse</option>
-                      <option value="Moyenne">Moyenne</option>
-                      <option value="Haute">Haute</option>
+                      <option value="Pas urgent">Pas urgent</option>
+                      <option value="Urgent">Urgent</option>
                     </select>
                   </label>
                   <label className="field">
@@ -1296,7 +1626,7 @@ function WorkspaceV2() {
                       <button
                         key={participant.id}
                         type="button"
-                        className={`assignee-chip ${newTask.assignees.includes(participant.name) ?'is-active' : ''}`}
+                        className={`assignee-chip ${newTask.assignees.includes(participant.name) ? 'is-active' : ''}`}
                         onClick={() =>
                           setNewTask((current) => ({
                             ...current,
@@ -1340,7 +1670,7 @@ function WorkspaceV2() {
                   className="secondary-button"
                   onClick={() => (taskStep === 1 ?setIsTaskModalOpen(false) : setTaskStep((step) => step - 1))}
                 >
-                  {taskStep === 1 ? 'Annuler' : 'Précédent'}
+                  {taskStep === 1 ? 'Annuler' : 'Precedent'}
                 </button>
                 {taskStep < 4 ?(
                   <button type="button" className="action-button" onClick={() => setTaskStep((step) => step + 1)}>
@@ -1361,7 +1691,7 @@ function WorkspaceV2() {
   );
 }
 
-function OverviewSection({ project }) {
+function OverviewSection({ project, stats }) {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   return (
     <>
@@ -1397,7 +1727,7 @@ function OverviewSection({ project }) {
               </button>
             </div>
             <div className="stats-grid compact-stats-grid">
-              {demoWorkspace.stats.map((stat, index) => (
+              {stats.map((stat, index) => (
                 <MetricBox
                   key={stat.label}
                   compact
@@ -1412,7 +1742,7 @@ function OverviewSection({ project }) {
         </div>
       )}
       <section className="stats-grid desktop-stats-grid">
-        {demoWorkspace.stats.map((stat, index) => (
+        {stats.map((stat, index) => (
           <MetricBox
             key={stat.label}
             label={stat.label}
@@ -1439,6 +1769,11 @@ function ProjectsSection({
   onBack,
   onEditProject,
   onOpenAccessModal,
+  onOpenProjectInfo,
+  onArchiveDocument,
+  onArchivePlan,
+  onArchiveProject,
+  onArchiveTask,
   onCreateProject,
   onDeleteTask,
   onInvite,
@@ -1470,7 +1805,7 @@ function ProjectsSection({
       <section className="panel light-panel">
         <div className="panel-heading">
           <div>
-            <h3>Sélectionne un chantier</h3>
+            <h3>Selectionne un chantier</h3>
           </div>
           {workspacePermissions.createProject && (
             <button type="button" className="action-button" onClick={onCreateProject}>
@@ -1481,6 +1816,8 @@ function ProjectsSection({
         </div>
         <ProjectList
           activeProjectId={activeProjectId}
+          canArchiveProject={workspacePermissions.archiveProject}
+          onArchiveProject={onArchiveProject}
           onEditProject={onEditProject}
           projects={projects}
           onMoveProject={onMoveProject}
@@ -1514,7 +1851,7 @@ function ProjectsSection({
             {canManageProject && (
               <>
                 <button type="button" className="secondary-button compact success-button" onClick={onOpenAccessModal}>
-                  Gérer les accès
+                  Gerer les acces
                 </button>
               </>
             )}
@@ -1526,7 +1863,18 @@ function ProjectsSection({
                 </button>
               </>
             )}
-            <button type="button" className="secondary-button icon-only">i</button>
+            {permissions.archiveProject && (
+              <button
+                type="button"
+                className="secondary-button compact archive-button"
+                onClick={() => onArchiveProject?.(activeProject.id, !activeProject.archived)}
+              >
+                {activeProject.archived ? 'Restaurer' : 'Archiver'}
+              </button>
+            )}
+            <button type="button" className="secondary-button icon-only" onClick={onOpenProjectInfo} aria-label="Informations chantier">
+              i
+            </button>
           </div>
         </div>
 
@@ -1553,21 +1901,40 @@ function ProjectsSection({
           </span>
           <span className="project-client-line">{activeProject.client}</span>
           <span className="project-client-line">{activeProject.period}</span>
-          <span className="project-client-line">Rôle : {getNormalizedRole(currentParticipant?.role) || '-'}</span>
+          <span className="project-client-line">Role : {getNormalizedRole(currentParticipant?.role) || '-'}</span>
         </div>
 
         <div className="project-module-stage">
           {activeProjectTab === 'Administratif' && (
-            <AdminDocsTab canAddAdminDoc={permissions.addAdminDoc} onSaveAdminDoc={onSaveAdminDoc} project={activeProject} />
+            <AdminDocsTab
+              canAddAdminDoc={permissions.addAdminDoc}
+              canArchive={permissions.archiveDocument}
+              onArchiveDoc={(documentId, archived) => onArchiveDocument?.(documentId, archived, 'adminDocs')}
+              onSaveAdminDoc={onSaveAdminDoc}
+              project={activeProject}
+            />
           )}
           {activeProjectTab === 'Documents' && (
-            <DocumentsTab canAddDocument={permissions.addDocument} onSaveDocument={onSaveDocument} project={activeProject} />
+            <DocumentsTab
+              canAddDocument={permissions.addDocument}
+              canArchive={permissions.archiveDocument}
+              onArchiveDocument={(documentId, archived) => onArchiveDocument?.(documentId, archived, 'documents')}
+              onSaveDocument={onSaveDocument}
+              project={activeProject}
+            />
           )}
           {activeProjectTab === 'Plan' && (
-            <PlansTab canAddPlan={permissions.addPlan} onSavePlan={onSavePlan} project={activeProject} />
+            <PlansTab
+              canAddPlan={permissions.addPlan}
+              canArchive={permissions.archivePlan}
+              onArchivePlan={onArchivePlan}
+              onSavePlan={onSavePlan}
+              project={activeProject}
+            />
           )}
           {activeProjectTab === 'Taches' && (
             <CompactProjectTasksTab
+              canArchiveTask={permissions.archiveTask}
               canCreateSection={permissions.createSection}
               canCreateTask={permissions.createTask}
               canDeleteTask={permissions.deleteTask}
@@ -1585,10 +1952,11 @@ function ProjectsSection({
                   dueDate: '',
                   section: '',
                   assignees: [],
-                  priority: 'Moyenne',
+                  priority: 'Pas urgent',
                 });
                 onOpenTaskModal();
               }}
+              onToggleTaskArchived={onArchiveTask}
               onSetTaskStatus={onToggleTaskCompleted}
               onToggleSection={onToggleSection}
               openSections={openSections}
@@ -1600,17 +1968,31 @@ function ProjectsSection({
   );
 }
 
-function ProjectList({ projects, onMoveProject, onOpenProject, onEditProject, activeProjectId }) {
+function ProjectList({ projects, onMoveProject, onOpenProject, onEditProject, activeProjectId, onArchiveProject, canArchiveProject }) {
+  const [showArchived, setShowArchived] = useState(false);
+  const visibleProjects = projects.filter((project) => (showArchived ?project.archived : !project.archived));
+
   return (
     <>
+      <div className="documents-tabs-wrap">
+        <div className="task-tabs">
+          <button type="button" className={`tab-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+            Actifs
+          </button>
+          <button type="button" className={`tab-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+            Archives
+          </button>
+        </div>
+      </div>
       <div className="project-list project-list-rows view-mode-list">
-        {projects.map((project, index) => (
-          <article key={project.id} className={`project-list-card ${activeProjectId === project.id ?'is-active' : ''}`}>
+        {visibleProjects.map((project, index) => (
+          <article key={project.id} className={`project-list-card ${activeProjectId === project.id ? 'is-active' : ''}`}>
             <button type="button" className="project-list-main" onClick={() => onOpenProject(project.id)}>
               <div className="project-row-main">
                 <div className="project-row-head">
                   <strong>{project.name}</strong>
                   <div className="project-row-head-right">
+                    {project.archived ?<span className="pill">Archive</span> : null}
                     <span className="project-open-indicator">Ouvrir</span>
                   </div>
                 </div>
@@ -1632,6 +2014,15 @@ function ProjectList({ projects, onMoveProject, onOpenProject, onEditProject, ac
               >
                 Modifier
               </button>
+              {canArchiveProject ?(
+                <button
+                  type="button"
+                  className="secondary-button compact archive-button"
+                  onClick={() => onArchiveProject?.(project.id, !project.archived)}
+                >
+                  {project.archived ? 'Restaurer' : 'Archiver'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="reorder-button"
@@ -1659,31 +2050,32 @@ function ProjectList({ projects, onMoveProject, onOpenProject, onEditProject, ac
 }
 
 
-function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
+function AdminDocsTab({ project, canAddAdminDoc, canArchive, onArchiveDoc, onSaveAdminDoc }) {
   const [editingDoc, setEditingDoc] = useState(null);
   const [docStep, setDocStep] = useState(1);
   const [selectedType, setSelectedType] = useState('Offres');
   const [openAdminDocId, setOpenAdminDocId] = useState(null);
   const [openAdminGroups, setOpenAdminGroups] = useState({});
+  const [showArchived, setShowArchived] = useState(false);
 
   const openAdminEditor = (doc) => {
     setEditingDoc({ ...doc });
     setDocStep(1);
   };
 
-  const filteredDocs = project.adminDocs.filter((doc) => doc.type === selectedType);
+  const filteredDocs = project.adminDocs.filter((doc) => doc.type === selectedType && (showArchived ?doc.archived : !doc.archived));
   const groups = [
     {
       label: selectedType + ' en cours',
-      items: filteredDocs.filter((doc) => ['En attente', 'En cours', 'Brouillon', '\u00c0 v\u00e9rifier', 'En r\u00e9vision'].includes(doc.status)),
+      items: filteredDocs.filter((doc) => ['En attente', 'En cours', 'Brouillon', 'A verifier', 'En revision'].includes(doc.status)),
     },
     {
-      label: selectedType + ' valid\u00e9s',
-      items: filteredDocs.filter((doc) => ['Valid\u00e9e', 'Sign\u00e9', 'Active', 'Publi\u00e9'].includes(doc.status)),
+      label: selectedType + ' valides',
+      items: filteredDocs.filter((doc) => ['Validee', 'Signe', 'Active', 'Publie'].includes(doc.status)),
     },
     {
-      label: selectedType + ' archiv\u00e9s',
-      items: filteredDocs.filter((doc) => ['Archiv\u00e9', 'Refus\u00e9e', 'Refusee', 'Expir\u00e9e'].includes(doc.status)),
+      label: selectedType + ' archives',
+      items: filteredDocs.filter((doc) => ['Archive', 'Refusee', 'Refusee', 'Expiree'].includes(doc.status)),
     },
   ];
 
@@ -1701,6 +2093,14 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
           </button>
         ))}
       </div>
+      <div className="admin-doc-toolbar">
+        <button type="button" className={`secondary-button compact ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+          En cours
+        </button>
+        <button type="button" className={`secondary-button compact ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+          Archives
+        </button>
+      </div>
       {groups.map((group) => (
         <div key={group.label} className="admin-group">
           <button
@@ -1711,7 +2111,7 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
             <span>{group.label}</span>
             <span>{openAdminGroups[group.label] ? '-' : '+'}</span>
           </button>
-          {openAdminGroups[group.label] ? (
+          {openAdminGroups[group.label] ?(
           <>
           <div className="admin-group-header">
             <strong>{group.label}</strong>
@@ -1727,7 +2127,7 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
             )}
           </div>
           <div className="admin-doc-list view-mode-list">
-            {group.items.length ? (
+            {group.items.length ?(
               group.items.map((doc) => (
                 <article key={doc.id} className={`admin-doc-item ${openAdminDocId === doc.id ? 'is-open' : ''}`}>
                   <button
@@ -1744,7 +2144,7 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
                       <span className="pill pill-electric">{doc.status}</span>
                     </div>
                   </button>
-                  {openAdminDocId === doc.id ? (
+                  {openAdminDocId === doc.id ?(
                   <div className="admin-doc-details">
                     <div className="details-row">
                       <span>Type</span>
@@ -1758,6 +2158,11 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
                       <button type="button" className="secondary-button compact" onClick={() => openAdminEditor(doc)}>
                         Modifier
                       </button>
+                      {canArchive ?(
+                        <button type="button" className="secondary-button compact archive-button" onClick={() => onArchiveDoc?.(doc.id, !doc.archived)}>
+                          {doc.archived ? 'Restaurer' : 'Archiver'}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   ) : null}
@@ -1766,7 +2171,7 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
             ) : (
               <div className="summary-card">
                 <div className="summary-row">
-                  <span>{'Aucun \u00e9l\u00e9ment dans ' + group.label.toLowerCase()}</span>
+                  <span>{'Aucun element dans ' + group.label.toLowerCase()}</span>
                   <strong>-</strong>
                 </div>
               </div>
@@ -1783,7 +2188,7 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
               <div>
                 <h3>{editingDoc.id ? 'Modifier un document administratif' : 'Ajouter un document administratif'}</h3>
               </div>
-              <span className="pill pill-electric">{'\u00c9tape ' + docStep + '/4'}</span>
+              <span className="pill pill-electric">{'Etape ' + docStep + '/4'}</span>
             </div>
             {docStep === 1 && (
               <div className="form-grid">
@@ -1829,7 +2234,7 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
                 </label>
                 <div className="summary-card">
                   <div className="summary-row">
-                    <span>Fichier s\u00e9lectionn\u00e9</span>
+                    <span>Fichier selectionne</span>
                     <strong>{editingDoc.fileName || '-'}</strong>
                   </div>
                 </div>
@@ -1872,9 +2277,9 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
                   setDocStep((step) => step - 1);
                 }}
               >
-                {docStep === 1 ? 'Annuler' : 'Pr\u00e9c\u00e9dent'}
+                {docStep === 1 ? 'Annuler' : 'Precedent'}
               </button>
-              {docStep < 4 ? (
+              {docStep < 4 ?(
                 <button type="button" className="action-button" onClick={() => setDocStep((step) => step + 1)}>
                   Suivant
                 </button>
@@ -1900,10 +2305,11 @@ function AdminDocsTab({ project, canAddAdminDoc, onSaveAdminDoc }) {
 }
 
 
-function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
+function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, onSaveDocument }) {
   const [editingDocument, setEditingDocument] = useState(null);
   const [documentStep, setDocumentStep] = useState(1);
   const [openDocumentId, setOpenDocumentId] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
   const documentSections = [
     { id: 'Plans', label: 'Plans', tabLabel: 'Plans', aliases: ['Plans'] },
     { id: 'Technique', label: 'Technique', tabLabel: 'Tech.', aliases: ['Technique', 'Techniques'] },
@@ -1920,7 +2326,7 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
   }, new Map());
   const visibleSections = documentSections.map((section) => ({
     ...section,
-    docs: section.aliases.flatMap((alias) => categoriesMap.get(alias) ?? []),
+    docs: section.aliases.flatMap((alias) => categoriesMap.get(alias) ?? []).filter((doc) => (showArchived ?doc.archived : !doc.archived)),
   }));
   const selectedSection = visibleSections.find((section) => section.id === activeDocumentSection) ?? visibleSections[0];
   const isPhotoSection = selectedSection?.id === 'Photo';
@@ -1938,7 +2344,7 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
 
     const sectionDocs = selectedSection?.docs ?? [];
     setOpenDocumentId((current) => (
-      sectionDocs.some((doc) => doc.id === current) ? current : (sectionDocs[0]?.id ?? null)
+      sectionDocs.some((doc) => doc.id === current) ?current : (sectionDocs[0]?.id ?? null)
     ));
   }, [isPhotoSection, selectedSection]);
 
@@ -1958,7 +2364,15 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
               </button>
             ))}
           </div>
-          {canAddDocument ? (
+          <div className="task-tabs">
+            <button type="button" className={`tab-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+              Actifs
+            </button>
+            <button type="button" className={`tab-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+              Archives
+            </button>
+          </div>
+          {canAddDocument ?(
             <button
               type="button"
               className="action-button compact documents-add-button"
@@ -1973,7 +2387,7 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
           ) : null}
         </div>
         <div className={`documents-panel ${isPhotoSection ? 'is-photo-panel' : 'is-file-panel'}`}>
-          {isPhotoSection ? (
+          {isPhotoSection ?(
             <div className="photo-gallery">
               {(selectedSection?.docs ?? []).map((doc) => (
                 <article key={doc.id} className="photo-card">
@@ -1994,14 +2408,14 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
                       <span>{doc.version}</span>
                       <span className="pill pill-electric">{doc.status}</span>
                     </div>
-                    {openDocumentId === doc.id ? (
+                    {openDocumentId === doc.id ?(
                       <div className="photo-card-details">
                         <div className="details-row">
-                          <span>Cat\u00e9gorie</span>
+                          <span>Categorie</span>
                           <strong>{doc.category}</strong>
                         </div>
                         <div className="details-row">
-                          <span>Sous-cat\u00e9gorie</span>
+                          <span>Sous-categorie</span>
                           <strong>{doc.subcategory}</strong>
                         </div>
                         <div className="details-row">
@@ -2012,13 +2426,18 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
                           <button type="button" className="secondary-button compact" onClick={() => openDocumentEditor(doc)}>
                             Modifier
                           </button>
+                          {canArchive ?(
+                            <button type="button" className="secondary-button compact archive-button" onClick={() => onArchiveDocument?.(doc.id, !doc.archived)}>
+                              {doc.archived ? 'Restaurer' : 'Archiver'}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}
                   </div>
                 </article>
               ))}
-              {(selectedSection?.docs ?? []).length === 0 ? (
+              {(selectedSection?.docs ?? []).length === 0 ?(
                 <article className="documents-empty-state">
                   <strong>Aucune photo pour le moment</strong>
                 </article>
@@ -2035,21 +2454,21 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
                   >
                     <div className="document-summary-main">
                       <strong>{doc.name}</strong>
-                      {doc.subcategory && doc.subcategory !== doc.name ? <small>{doc.subcategory}</small> : null}
+                      {doc.subcategory && doc.subcategory !== doc.name ?<small>{doc.subcategory}</small> : null}
                     </div>
                     <div className="document-summary-meta">
                       <span>{doc.version}</span>
                       <span className="pill pill-electric">{doc.status}</span>
                     </div>
                   </button>
-                  {openDocumentId === doc.id ? (
+                  {openDocumentId === doc.id ?(
                   <div className="document-details">
                     <div className="details-row">
-                      <span>Cat\u00e9gorie</span>
+                      <span>Categorie</span>
                       <strong>{doc.category}</strong>
                     </div>
                     <div className="details-row">
-                      <span>Sous-cat\u00e9gorie</span>
+                      <span>Sous-categorie</span>
                       <strong>{doc.subcategory}</strong>
                     </div>
                     <div className="details-row">
@@ -2060,12 +2479,17 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
                       <button type="button" className="secondary-button compact" onClick={() => openDocumentEditor(doc)}>
                         Modifier
                       </button>
+                      {canArchive ?(
+                        <button type="button" className="secondary-button compact archive-button" onClick={() => onArchiveDocument?.(doc.id, !doc.archived)}>
+                          {doc.archived ? 'Restaurer' : 'Archiver'}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   ) : null}
                 </article>
               ))}
-              {(selectedSection?.docs ?? []).length === 0 ? (
+              {(selectedSection?.docs ?? []).length === 0 ?(
                 <article className="documents-empty-state">
                   <strong>Aucun document pour le moment</strong>
                 </article>
@@ -2081,16 +2505,16 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
               <div>
                 <h3>{editingDocument.id ? 'Modifier un document' : 'Ajouter un document'}</h3>
               </div>
-              <span className="pill pill-electric">{'\u00c9tape ' + documentStep + '/4'}</span>
+              <span className="pill pill-electric">{'Etape ' + documentStep + '/4'}</span>
             </div>
             {documentStep === 1 && (
               <div className="form-grid">
                 <label className="field">
-                  <span>Cat\u00e9gorie</span>
+                  <span>Categorie</span>
                   <input type="text" value={editingDocument.category} onChange={(event) => setEditingDocument((current) => ({ ...current, category: event.target.value }))} />
                 </label>
                 <label className="field">
-                  <span>Sous-cat\u00e9gorie</span>
+                  <span>Sous-categorie</span>
                   <input type="text" value={editingDocument.subcategory} onChange={(event) => setEditingDocument((current) => ({ ...current, subcategory: event.target.value }))} />
                 </label>
                 <label className="field field-full">
@@ -2127,7 +2551,7 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
                 </label>
                 <div className="summary-card">
                   <div className="summary-row">
-                    <span>Fichier s\u00e9lectionn\u00e9</span>
+                    <span>Fichier selectionne</span>
                     <strong>{editingDocument.fileName || '-'}</strong>
                   </div>
                 </div>
@@ -2136,11 +2560,11 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
             {documentStep === 4 && (
               <div className="summary-card">
                 <div className="summary-row">
-                  <span>Cat\u00e9gorie</span>
+                  <span>Categorie</span>
                   <strong>{editingDocument.category || '-'}</strong>
                 </div>
                 <div className="summary-row">
-                  <span>Sous-cat\u00e9gorie</span>
+                  <span>Sous-categorie</span>
                   <strong>{editingDocument.subcategory || '-'}</strong>
                 </div>
                 <div className="summary-row">
@@ -2174,9 +2598,9 @@ function DocumentsTab({ project, canAddDocument, onSaveDocument }) {
                   setDocumentStep((step) => step - 1);
                 }}
               >
-                {documentStep === 1 ? 'Annuler' : 'Pr\u00e9c\u00e9dent'}
+                {documentStep === 1 ? 'Annuler' : 'Precedent'}
               </button>
-              {documentStep < 4 ? (
+              {documentStep < 4 ?(
                 <button type="button" className="action-button" onClick={() => setDocumentStep((step) => step + 1)}>
                   Suivant
                 </button>
@@ -2241,11 +2665,11 @@ function PlanAnnotationCanvas({
     const updateStageSize = () => {
       const nextWidth = containerRef.current?.clientWidth ?? 1120;
       const isMobileViewport = window.innerWidth <= 767;
-      const minWidth = isMobileViewport ? 280 : 640;
+      const minWidth = isMobileViewport ?280 : 640;
       const safeWidth = Math.max(minWidth, nextWidth - 2);
-      const imageRatio = image && image.width && image.height ? image.width / image.height : 16 / 9;
+      const imageRatio = image && image.width && image.height ?image.width / image.height : 16 / 9;
       const maxHeight = isMobileViewport
-        ? Math.max(260, window.innerHeight - 290)
+        ?Math.max(260, window.innerHeight - 290)
         : Math.max(620, window.innerHeight - 140);
       let nextHeight = safeWidth / imageRatio;
       let fittedWidth = safeWidth;
@@ -2494,11 +2918,12 @@ function PlanAnnotationCanvas({
 }
 
 
-function PlansTab({ project, canAddPlan, onSavePlan }) {
+function PlansTab({ project, canAddPlan, canArchive, onArchivePlan, onSavePlan }) {
   const [openPlanId, setOpenPlanId] = useState(null);
   const [selectedPlanVersions, setSelectedPlanVersions] = useState({});
   const [studioPlan, setStudioPlan] = useState(null);
-  const [isMobileStudio, setIsMobileStudio] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 767 : false));
+  const [showArchived, setShowArchived] = useState(false);
+  const [isMobileStudio, setIsMobileStudio] = useState(() => (typeof window !== 'undefined' ?window.innerWidth <= 767 : false));
   const [planTool, setPlanTool] = useState(planToolPresets[0].id);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState(null);
   const [annotationHistory, setAnnotationHistory] = useState([]);
@@ -2508,7 +2933,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
   const cloneAnnotations = (annotations) => (
     (annotations ?? []).map((annotation) => ({
       ...annotation,
-      points: Array.isArray(annotation.points) ? [...annotation.points] : annotation.points,
+      points: Array.isArray(annotation.points) ?[...annotation.points] : annotation.points,
     }))
   );
 
@@ -2522,7 +2947,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
   });
 
   const getPlanVersions = (plan) => {
-    const storedVersions = Array.isArray(plan.versions) ? plan.versions : [];
+    const storedVersions = Array.isArray(plan.versions) ?plan.versions : [];
     const currentVersion = {
       id: `current-${plan.id}`,
       version: plan.version,
@@ -2548,7 +2973,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
     const numericLabels = annotations
       .map((annotation) => Number(annotation.label))
       .filter((value) => Number.isFinite(value));
-    return String((numericLabels.length ? Math.max(...numericLabels) : 0) + 1);
+    return String((numericLabels.length ?Math.max(...numericLabels) : 0) + 1);
   };
 
   const openPlanStudio = (plan) => {
@@ -2557,7 +2982,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
       updatedAt: plan.updatedAt || new Date().toISOString().slice(0, 10),
       imageUrl: plan.imageUrl ?? '',
       annotations: cloneAnnotations(plan.annotations),
-      versions: Array.isArray(plan.versions) ? plan.versions.map((version) => ({ ...version })) : [],
+      versions: Array.isArray(plan.versions) ?plan.versions.map((version) => ({ ...version })) : [],
     });
     setPlanTool(planToolPresets[0].id);
     setSelectedAnnotationId(null);
@@ -2701,7 +3126,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
     const existingPlan = project.plans.find((plan) => plan.id === snapshotPlan.id);
     const nextSnapshot = buildPlanSnapshot(snapshotPlan);
     const previousVersions = Array.isArray(existingPlan?.versions)
-      ? existingPlan.versions.filter((version) => version.version !== snapshotPlan.version)
+      ?existingPlan.versions.filter((version) => version.version !== snapshotPlan.version)
       : [];
 
     onSavePlan({
@@ -2716,9 +3141,10 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
     () => studioPlan?.annotations?.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
     [studioPlan, selectedAnnotationId]
   );
+  const visiblePlans = project.plans.filter((plan) => (showArchived ?plan.archived : !plan.archived));
 
   useEffect(() => {
-    setOpenPlanId((current) => (project.plans.some((plan) => plan.id === current) ? current : (project.plans[0]?.id ?? null)));
+    setOpenPlanId((current) => (project.plans.some((plan) => plan.id === current) ?current : (project.plans[0]?.id ?? null)));
   }, [project.plans]);
 
   useEffect(() => {
@@ -2746,7 +3172,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
           <strong>{annotation.family || annotation.label || annotation.type}</strong>
         </div>
 
-        {annotation.type === 'marker' ? (
+        {annotation.type === 'marker' ?(
           <label className="field">
             <span>Numero</span>
             <input
@@ -2757,7 +3183,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
           </label>
         ) : null}
 
-        {annotation.type === 'text' ? (
+        {annotation.type === 'text' ?(
           <label className="field">
             <span>Texte</span>
             <input
@@ -2768,7 +3194,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
           </label>
         ) : null}
 
-        {annotation.type === 'circle' ? (
+        {annotation.type === 'circle' ?(
           <label className="field">
             <span>Rayon</span>
             <input
@@ -2779,7 +3205,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
           </label>
         ) : null}
 
-        {annotation.type === 'rect' ? (
+        {annotation.type === 'rect' ?(
           <div className="form-grid">
             <label className="field">
               <span>Largeur</span>
@@ -2812,7 +3238,13 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
   return (
     <div className="plans-module">
       <div className="plan-toolbar">
-        {canAddPlan ? (
+        <button type="button" className={`secondary-button compact ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+          Actifs
+        </button>
+        <button type="button" className={`secondary-button compact ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+          Archives
+        </button>
+        {canAddPlan ?(
           <button
             type="button"
             className="action-button compact plan-add-button"
@@ -2825,14 +3257,14 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
       </div>
 
       <div className="plan-list view-mode-list">
-        {project.plans.length === 0 ? (
+        {visiblePlans.length === 0 ?(
           <div className="documents-empty-state">
             <strong>Aucun plan</strong>
             <span>Ajoute un plan pour commencer l'annotation.</span>
           </div>
         ) : null}
 
-        {project.plans.map((plan) => {
+        {visiblePlans.map((plan) => {
           const displayedVersion = getDisplayedPlanVersion(plan);
 
           return (
@@ -2852,7 +3284,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
                 </div>
               </button>
 
-              {openPlanId === plan.id ? (
+              {openPlanId === plan.id ?(
                 <div className="plan-details plan-details-clean">
                   <div className="plan-version-strip">
                     {getPlanVersions(plan).map((version) => (
@@ -2898,6 +3330,11 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
                     <button type="button" className="secondary-button compact" onClick={() => openPlanStudio(plan)}>
                       Modifier le plan
                     </button>
+                    {canArchive ?(
+                      <button type="button" className="secondary-button compact archive-button" onClick={() => onArchivePlan?.(plan.id, !plan.archived)}>
+                        {plan.archived ? 'Restaurer' : 'Archiver'}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -2906,10 +3343,10 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
         })}
       </div>
 
-      {studioPlan ? (
+      {studioPlan ?(
         <div className="modal-backdrop plan-studio-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card light-modal plan-studio-modal">
-            {isMobileStudio ? (
+            {isMobileStudio ?(
               <div className="plan-studio-mobile">
                 <div className="plan-mobile-topbar">
                   <button type="button" className="secondary-button compact" onClick={closePlanStudio}>
@@ -2917,7 +3354,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
                   </button>
                   <div className="plan-mobile-topbar-copy">
                     <strong>{studioPlan.name || 'Plan'}</strong>
-                    <span>{`v${studioPlan.version} ? ${studioPlan.annotations?.length ?? 0} reperes`}</span>
+                    <span>{`v${studioPlan.version} - ${studioPlan.annotations?.length ?? 0} reperes`}</span>
                   </div>
                   <div className="plan-mobile-topbar-actions">
                     <button type="button" className="action-button compact" onClick={savePlanDraft}>
@@ -2993,7 +3430,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
                     </button>
                   </div>
 
-                  {selectedAnnotation ? (
+                  {selectedAnnotation ?(
                     <div className="plan-mobile-sheet">
                       <div className="plan-mobile-sheet-head">
                         <strong>Repere selectionne</strong>
@@ -3114,7 +3551,7 @@ function PlansTab({ project, canAddPlan, onSavePlan }) {
                     />
                   </div>
 
-                  {selectedAnnotation ? (
+                  {selectedAnnotation ?(
                     <aside className="plan-studio-sidebar">
                       {renderAnnotationInspector(selectedAnnotation)}
                     </aside>
@@ -3151,7 +3588,7 @@ function ProjectTasksTab({
           {canCreateTask && (
             <button type="button" className="action-button" onClick={onOpenTaskModal}>
               <FontAwesomeIcon icon={faPlus} />
-              Ajouter une tâche
+              Ajouter une tache
             </button>
           )}
           {canCreateSection && (
@@ -3167,14 +3604,14 @@ function ProjectTasksTab({
         <div key={section} className="section-block">
           <button type="button" className="section-header" onClick={() => onToggleSection(section)}>
             <span>{section}</span>
-            <span>{openSections[section] ?'-' : '+'}</span>
+            <span>{openSections[section] ? '-' : '+'}</span>
           </button>
           {openSections[section] && (
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>N°</th>
+                    <th>No</th>
                     <th>Titre</th>
                     <th>Responsable</th>
                     <th>Type</th>
@@ -3190,18 +3627,18 @@ function ProjectTasksTab({
                       <tr key={task.id}>
                         <td>{index + 1}</td>
                         <td>{task.title}</td>
-                        <td>{task.assignees?.join(', ') || 'Non assigné'}</td>
+                        <td>{task.assignees?.join(', ') || 'Non assigne'}</td>
                         <td>{task.interventionType || '-'}</td>
                         <td>{task.dueDate || '-'}</td>
                         <td>{getTaskStatus(task)}</td>
                         <td className="task-actions-cell">
-                          {getTaskStatus(task) !== 'À faire' && (
+                          {getTaskStatus(task) !== 'A faire' && (
                             <button
                               type="button"
                               className="secondary-button compact"
-                              onClick={() => onSetTaskStatus(task.id, 'À faire')}
+                              onClick={() => onSetTaskStatus(task.id, 'A faire')}
                             >
-                              À faire
+                              A faire
                             </button>
                           )}
                           {getTaskStatus(task) !== 'En cours' && (
@@ -3213,11 +3650,11 @@ function ProjectTasksTab({
                               En cours
                             </button>
                           )}
-                          {getTaskStatus(task) !== 'Terminée' && (
+                          {getTaskStatus(task) !== 'Terminee' && (
                             <button
                               type="button"
                               className="secondary-button compact"
-                              onClick={() => onSetTaskStatus(task.id, 'Terminée')}
+                              onClick={() => onSetTaskStatus(task.id, 'Terminee')}
                             >
                               Terminer
                             </button>
@@ -3243,12 +3680,12 @@ function ActorsTab({ project }) {
   const actorConversations = useMemo(() => {
     const generalConversation = {
       id: 'general-site',
-      name: 'Discussion générale',
+      name: 'Discussion generale',
       participantsLabel: `${project.participants.length} intervenants`,
       preview: 'Canal commun pour tout le chantier.',
       messages: [
         { id: 'general-1', author: 'Coordination', text: 'Bonjour a tous, point chantier a 8h30 demain.', time: '08:12', own: false },
-        { id: 'general-2', author: 'Vous', text: 'Bien reçu, je serai présent.', time: '08:18', own: true, status: 'Lu' },
+        { id: 'general-2', author: 'Vous', text: 'Bien recu, je serai present.', time: '08:18', own: true, status: 'Lu' },
         { id: 'general-3', author: 'Architecte', text: 'Je partage aussi les derniers ajustements avant la reunion.', time: '08:24', own: false },
       ],
     };
@@ -3256,8 +3693,8 @@ function ActorsTab({ project }) {
     const privateConversations = project.participants.filter((participant) => participant.name !== demoWorkspace.user.name).map((participant, index) => ({
       id: `actor-${participant.id}`,
       name: participant.name,
-      participantsLabel: `Prive • ${getNormalizedRole(participant.role)}`,
-      preview: `Discussion privée avec ${participant.name}`,
+      participantsLabel: `Prive  -  ${getNormalizedRole(participant.role)}`,
+      preview: `Discussion privee avec ${participant.name}`,
       messages: [
         { id: `${participant.id}-1`, author: participant.name, text: `Bonjour, je vous envoie le point du jour pour ${participant.name}.`, time: `0${(index % 3) + 8}:14`, own: false },
         { id: `${participant.id}-2`, author: 'Vous', text: 'Parfait, je regarde cela et je reviens vers vous rapidement.', time: `0${(index % 3) + 8}:21`, own: true, status: 'Lu' },
@@ -3287,7 +3724,7 @@ function ActorsTab({ project }) {
     const thread = messagesByConversation[conversation.id] ?? conversation.messages;
     const lastMessage = thread[thread.length - 1];
     const preview = lastMessage?.attachment
-      ? `${lastMessage.attachment.kind === 'image' ? 'Photo' : 'Pièce jointe'} : ${lastMessage.attachment.name}`
+      ?`${lastMessage.attachment.kind === 'image' ? 'Photo' : 'Piece jointe'} : ${lastMessage.attachment.name}`
       : (lastMessage?.text ?? conversation.preview);
 
     return {
@@ -3300,7 +3737,7 @@ function ActorsTab({ project }) {
   const selectedConversation = actorConversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
   const thread = selectedConversation ? (messagesByConversation[selectedConversation.id] ?? []) : [];
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const content = messageDraft.trim();
     if (!content || !selectedConversation) {
       return;
@@ -3317,7 +3754,7 @@ function ActorsTab({ project }) {
           text: content,
           time,
           own: true,
-          status: 'Envoyé',
+          status: 'Envoye',
           attachment: null,
         },
       ],
@@ -3325,7 +3762,7 @@ function ActorsTab({ project }) {
     setMessageDraft('');
   };
 
-  const addAttachmentToConversation = (file, kind) => {
+  const addAttachmentToConversation = async (file, kind) => {
     if (!file || !selectedConversation) {
       return;
     }
@@ -3346,10 +3783,10 @@ function ActorsTab({ project }) {
         {
           id: `${selectedConversation.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           author: 'Vous',
-          text: kind === 'image' ? `Photo envoyée : ${attachment.name}` : `Pièce jointe : ${attachment.name}`,
+          text: kind === 'image' ?`Photo envoyee : ${attachment.name}` : `Piece jointe : ${attachment.name}`,
           time,
           own: true,
-          status: 'Envoyé',
+          status: 'Envoye',
           attachment,
         },
       ],
@@ -3374,7 +3811,7 @@ function ActorsTab({ project }) {
 
   return (
     <div className={`messages-app ${selectedConversation ? 'has-open-thread' : ''}`}>
-      {!selectedConversation ? (
+      {!selectedConversation ?(
       <div className="actors-list messages-list-panel">
         <div className="messages-list-top">
           <div>
@@ -3400,7 +3837,7 @@ function ActorsTab({ project }) {
                 <small className="message-list-preview">{conversation.preview}</small>
               </span>
               <span className="message-list-meta">
-                <span className="pill pill-electric">{conversation.id === 'general-site' ? 'groupe' : 'privé'}</span>
+                <span className="pill pill-electric">{conversation.id === 'general-site' ? 'groupe' : 'prive'}</span>
               </span>
             </button>
           ))}
@@ -3428,20 +3865,20 @@ function ActorsTab({ project }) {
           {thread.map((item) => (
             <div key={item.id} className={`chat-row ${item.own ? 'is-own' : ''}`}>
               <article className={`chat-bubble ${item.own ? 'is-own' : ''}`}>
-                {!item.own ? <strong>{item.author}</strong> : null}
-                {item.attachment?.kind === 'image' ? (
+                {!item.own ?<strong>{item.author}</strong> : null}
+                {item.attachment?.kind === 'image' ?(
                   <a href={item.attachment.url} target="_blank" rel="noreferrer" className="chat-attachment-preview">
                     <img src={item.attachment.url} alt={item.attachment.name} className="chat-image-preview" />
                   </a>
                 ) : null}
                 <p>{item.text}</p>
-                {item.attachment?.kind === 'file' ? (
+                {item.attachment?.kind === 'file' ?(
                   <a href={item.attachment.url} target="_blank" rel="noreferrer" className="chat-attachment-link">
                     <FontAwesomeIcon icon={faFile} />
                     <span>{item.attachment.name}</span>
                   </a>
                 ) : null}
-                <small>{item.time}{item.own && item.status ? ` • ${item.status}` : ''}</small>
+                <small>{item.time}{item.own && item.status ?`  -  ${item.status}` : ''}</small>
               </article>
             </div>
           ))}
@@ -3462,7 +3899,7 @@ function ActorsTab({ project }) {
             className="messages-hidden-input"
             onChange={handleCameraSelection}
           />
-          <button type="button" className="icon-button" onClick={() => galleryInputRef.current?.click()} aria-label="Ajouter une pièce jointe">
+          <button type="button" className="icon-button" onClick={() => galleryInputRef.current?.click()} aria-label="Ajouter une piece jointe">
             <FontAwesomeIcon icon={faPaperclip} />
           </button>
           <button type="button" className="icon-button" onClick={() => cameraInputRef.current?.click()} aria-label="Prendre une photo">
@@ -3478,7 +3915,7 @@ function ActorsTab({ project }) {
                 sendMessage();
               }
             }}
-            placeholder="Écrire un message"
+            placeholder="Ecrire un message"
           />
           <button type="button" className="action-button messages-send-button" onClick={sendMessage} aria-label="Envoyer">
             <FontAwesomeIcon icon={faPaperPlane} />
@@ -3491,31 +3928,68 @@ function ActorsTab({ project }) {
   );
 }
 function CompactProjectTasksTab({
+  canArchiveTask,
   canCreateSection,
   canCreateTask,
   canDeleteTask,
   canUpdateTask,
   onUpdateTask,
+  showTaskRecapControl = true,
   project,
   onDeleteTask,
   onOpenSectionModal,
   onOpenTaskModal,
   onSetTaskStatus,
+  onToggleTaskArchived,
   onToggleSection,
   openSections,
 }) {
   const [openTaskId, setOpenTaskId] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [selectedSection, setSelectedSection] = useState(project.sections?.[0] ?? null);
+  const [showTaskRecap, setShowTaskRecap] = useState(false);
+
+  useEffect(() => {
+    if (!project.sections?.length) {
+      setSelectedSection(null);
+      return;
+    }
+
+    setSelectedSection((current) => (current && project.sections.includes(current) ?current : project.sections[0]));
+  }, [project.sections]);
+
+  const scopedTasks = project.tasks.filter((task) => task.archived === showArchived);
+  const sectionTasks = scopedTasks.filter((task) => task.section === selectedSection);
+  const projectTasks = project.tasks ?? [];
+  const recapItems = [
+    { label: 'Total', value: projectTasks.length },
+    { label: 'A faire', value: projectTasks.filter((task) => getTaskStatus(task) === 'A faire').length },
+    { label: 'En cours', value: projectTasks.filter((task) => getTaskStatus(task) === 'En cours').length },
+    { label: 'Terminees', value: projectTasks.filter((task) => getTaskStatus(task) === 'Terminee').length },
+    { label: 'Urgentes', value: projectTasks.filter((task) => getTaskPriorityLabel(task.priority) === 'Urgent').length },
+    { label: 'Sections', value: project.sections?.length ?? 0 },
+  ];
+  const recapSections = (project.sections ?? []).map((section) => ({
+    section,
+    tasks: projectTasks.filter((task) => task.section === section),
+  }));
 
   return (
     <div className="task-module">
       <div className="task-toolbar">
         <div className="task-toolbar-actions">
+          <button type="button" className={`secondary-button compact ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+            Actives
+          </button>
+          <button type="button" className={`secondary-button compact ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+            Archives
+          </button>
           {canCreateTask && typeof onOpenTaskModal === 'function' && (
             <button type="button" className="action-button" onClick={onOpenTaskModal}>
               <FontAwesomeIcon icon={faPlus} />
-              Ajouter une tâche
+              Ajouter une tache
             </button>
           )}
           {canCreateSection && typeof onOpenSectionModal === 'function' && (
@@ -3525,167 +3999,298 @@ function CompactProjectTasksTab({
             </button>
           )}
         </div>
+        {showTaskRecapControl ? (
+          <div className="task-toolbar-side">
+            <button type="button" className={`secondary-button compact recap-side-button ${showTaskRecap ? 'is-active' : ''}`} onClick={() => setShowTaskRecap((current) => !current)}>
+              <FontAwesomeIcon icon={faPlus} />
+              {showTaskRecap ? 'Fermer recap' : 'Recap +'}
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {project.sections.map((section) => (
-        <div key={section} className="section-block">
-          <button type="button" className="section-header" onClick={() => onToggleSection(section)}>
-            <span>{section}</span>
-            <span>{openSections[section] ? '-' : '+'}</span>
-          </button>
-          {openSections[section] && (
-            <div className="project-task-board">
-              {taskStatusOptions.map((status) => {
-                const columnTasks = project.tasks.filter(
-                  (task) => task.section === section && getTaskStatus(task) === status.id
-                );
+      {showTaskRecapControl && showTaskRecap ?(
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card light-modal detail-modal task-recap-modal">
+            <div className="panel-heading compact">
+              <div>
+                <p className="eyebrow">Recap chantier</p>
+                <h3>{project.name}</h3>
+                <p className="topbar-subcopy">Vue complete du chantier et de toutes ses taches en un clic.</p>
+              </div>
+              <button type="button" className="secondary-button compact" onClick={() => setShowTaskRecap(false)}>
+                Fermer
+              </button>
+            </div>
 
-                return (
-                  <div
-                    key={status.id}
-                    className="project-task-column"
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => {
-                      if (draggedTaskId && canUpdateTask) {
-                        onSetTaskStatus(draggedTaskId, status.id);
-                        setDraggedTaskId(null);
-                      }
-                    }}
-                    onTouchEnd={() => {
-                      if (draggedTaskId && canUpdateTask) {
-                        onSetTaskStatus(draggedTaskId, status.id);
-                        setDraggedTaskId(null);
-                      }
-                    }}
-                  >
-                    <div className="project-task-column-header">
-                      <strong>{status.label}</strong>
-                      <span className="pill">{columnTasks.length}</span>
-                    </div>
+            <div className="task-recap-grid">
+              {recapItems.map((item) => (
+                <div key={item.label} className="summary-card">
+                  <div className="summary-row">
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-                    <div className="task-list project-task-column-list">
-                      {columnTasks.length ? (
-                        columnTasks.map((task) => {
-                          const isOpen = openTaskId === task.id;
-                          return (
-                            <article
-                              key={task.id}
-                              className={`task-item ${isOpen ? 'is-open' : ''}`}
-                              draggable={canUpdateTask}
-                              onDragStart={() => setDraggedTaskId(task.id)}
-                              onDragEnd={() => setDraggedTaskId(null)}
-                              onTouchStart={() => canUpdateTask && setDraggedTaskId(task.id)}
-                            >
-                              <button
-                                type="button"
-                                className="task-summary"
-                                onClick={() => setOpenTaskId((current) => (current === task.id ? null : task.id))}
-                              >
-                                <div className="task-summary-main">
-                                  <strong>{task.title}</strong>
-                                  <small>{task.assignees?.join(', ') || 'Non assigné'}</small>
-                                </div>
-                                <div className="task-summary-meta">
-                                  <span className="pill pill-electric">{getTaskStatus(task)}</span>
-                                </div>
-                              </button>
-                              {isOpen && (
-                                <div className="task-details">
-                                  <div className="details-row">
-                                    <span>Description</span>
-                                    <strong>{task.description || '-'}</strong>
-                                  </div>
-                                  <div className="details-row">
-                                    <span>Responsables</span>
-                                    <strong>{task.assignees?.join(', ') || 'Non assigné'}</strong>
-                                  </div>
-                                  <div className="details-row">
-                                    <span>Priorité</span>
-                                    <strong>{task.priority}</strong>
-                                  </div>
-                                  <div className="details-row">
-                                    <span>Statut</span>
-                                    <strong>{getTaskStatus(task)}</strong>
-                                  </div>
-                                  <div className="details-row">
-                                    <span>Date</span>
-                                    <strong>{task.dueDate || '-'}</strong>
-                                  </div>
-                                  {(canUpdateTask || canDeleteTask) && (
-                                    <div className="admin-doc-actions">
-                                      {canUpdateTask && (
-                                        <>
-                                          {getTaskStatus(task) !== 'À faire' && (
-                                            <button
-                                              type="button"
-                                              className="secondary-button compact"
-                                              onClick={() => onSetTaskStatus(task.id, 'À faire')}
-                                            >
-                                              <FontAwesomeIcon icon={faArrowLeft} />
-                                              {'À faire'}
-                                            </button>
-                                          )}
-                                          {getTaskStatus(task) !== 'En cours' && (
-                                            <button
-                                              type="button"
-                                              className="secondary-button compact"
-                                              onClick={() => onSetTaskStatus(task.id, 'En cours')}
-                                            >
-                                              <FontAwesomeIcon icon={faEye} />
-                                              En cours
-                                            </button>
-                                          )}
-                                          {getTaskStatus(task) !== 'Terminée' && (
-                                            <button
-                                              type="button"
-                                              className="secondary-button compact"
-                                              onClick={() => onSetTaskStatus(task.id, 'Terminée')}
-                                            >
-                                              <FontAwesomeIcon icon={faArrowUp} />
-                                              Terminer
-                                            </button>
-                                          )}
-                                        </>
-                                      )}
-                                      {canDeleteTask && (
-                                        <button type="button" className="icon-button danger" onClick={() => onDeleteTask(task.id)}>
-                                          <FontAwesomeIcon icon={faTrash} />
-                                        </button>
-                                      )}
-                                      {canUpdateTask && (
-                                        <button type="button" className="secondary-button compact" onClick={() => setEditingTask(task)}>
-                                          Modifier
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </article>
-                          );
-                        })
-                      ) : (
-                        <div className="summary-card">
-                          <div className="summary-row">
-                            <span>Aucune tâche</span>
-                            <strong>-</strong>
+            <div className="project-info-grid">
+              <div className="summary-card">
+                <div className="summary-row"><span>Client</span><strong>{project.client || '-'}</strong></div>
+                <div className="summary-row"><span>Adresse / site</span><strong>{project.site || '-'}</strong></div>
+                <div className="summary-row"><span>Budget</span><strong>{project.budget || '-'}</strong></div>
+                <div className="summary-row"><span>Periode</span><strong>{project.period || '-'}</strong></div>
+                <div className="summary-row"><span>Statut</span><strong>{project.status || '-'}</strong></div>
+                <div className="summary-row"><span>Progression</span><strong>{project.progress ?? 0}%</strong></div>
+              </div>
+
+              <div className="summary-card">
+                <div className="summary-row"><span>Intervenants</span><strong>{project.participants?.length ?? 0}</strong></div>
+                <div className="summary-row"><span>Documents</span><strong>{((project.documents?.length ?? 0) + (project.adminDocs?.length ?? 0))}</strong></div>
+                <div className="summary-row"><span>Plans</span><strong>{project.plans?.length ?? 0}</strong></div>
+                <div className="summary-row"><span>Conversations</span><strong>{project.conversations?.length ?? 0}</strong></div>
+                <div className="summary-row"><span>Taches archivees</span><strong>{projectTasks.filter((task) => task.archived).length}</strong></div>
+                <div className="summary-row"><span>Taches actives</span><strong>{projectTasks.filter((task) => !task.archived).length}</strong></div>
+              </div>
+            </div>
+
+            <div className="summary-card project-info-block">
+              <div className="summary-row">
+                <span>Equipe chantier</span>
+                <strong>{project.participants?.length ?? 0}</strong>
+              </div>
+              <div className="project-info-tags">
+                {(project.participants ?? []).map((participant) => (
+                  <span key={participant.id} className="pill pill-electric">
+                    {participant.name} - {participant.role}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="task-recap-sections">
+              {recapSections.map((group) => (
+                <div key={group.section} className="summary-card task-recap-section-card">
+                  <div className="summary-row">
+                    <span>{group.section}</span>
+                    <strong>{group.tasks.length} tache(s)</strong>
+                  </div>
+                  {group.tasks.length ? (
+                    <div className="task-recap-task-list">
+                      {group.tasks.map((task) => (
+                        <div key={task.id} className="task-recap-task-row">
+                          <div className="task-recap-task-copy">
+                            <strong>{task.title}</strong>
+                            <small>{task.description || 'Aucune description'}</small>
+                          </div>
+                          <div className="task-recap-task-meta">
+                            <span className={`pill ${getTaskStatusBadgeClass(task)}`}>{getTaskStatus(task)}</span>
+                            {getTaskPriorityLabel(task.priority) === 'Urgent' ? (
+                              <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
+                            ) : null}
+                            <span className="pill">{task.assignees?.join(', ') || 'Non assigne'}</span>
+                            <span className="pill">{task.dueDate || '-'}</span>
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  </div>
-                );
-              })}
+                  ) : (
+                    <div className="summary-row">
+                      <span>Aucune tache dans cette section</span>
+                      <strong>-</strong>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
-      ))}
+      ) : null}
+
+      <div className="section-selector">
+        {(project.sections ?? []).map((section) => {
+          const taskCount = scopedTasks.filter((task) => task.section === section).length;
+          const isActive = selectedSection === section;
+          return (
+            <button
+              key={section}
+              type="button"
+              className={`section-chip ${isActive ? 'is-active' : ''}`}
+              onClick={() => setSelectedSection(section)}
+            >
+              <span>{section}</span>
+              <span className="pill">{taskCount}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedSection ?(
+        <div className="section-panel">
+          <div className="section-panel-header">
+            <div>
+              <h3>{selectedSection}</h3>
+              <p>{sectionTasks.length} tache{sectionTasks.length > 1 ? 's' : ''} dans cette section</p>
+            </div>
+          </div>
+          <div className="project-task-board">
+            {taskStatusOptions.map((status) => {
+              const columnTasks = sectionTasks.filter((task) => getTaskStatus(task) === status.id);
+
+              return (
+                <div
+                  key={status.id}
+                  className={`project-task-column ${getTaskStatusToneClass(status.id)}`}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (draggedTaskId && canUpdateTask) {
+                      onSetTaskStatus(draggedTaskId, status.id);
+                      setDraggedTaskId(null);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (draggedTaskId && canUpdateTask) {
+                      onSetTaskStatus(draggedTaskId, status.id);
+                      setDraggedTaskId(null);
+                    }
+                  }}
+                >
+                  <div className={`project-task-column-header ${getTaskStatusToneClass(status.id)}`}>
+                    <strong>{status.label}</strong>
+                    <span className="pill">{columnTasks.length}</span>
+                  </div>
+
+                  <div className="task-list project-task-column-list">
+                    {columnTasks.length ?(
+                      columnTasks.map((task) => {
+                        const isOpen = openTaskId === task.id;
+                        return (
+                          <article
+                            key={task.id}
+                            className={`task-item ${getTaskStatusToneClass(getTaskStatus(task))} ${isOpen ? 'is-open' : ''}`}
+                            draggable={canUpdateTask}
+                            onDragStart={() => setDraggedTaskId(task.id)}
+                            onDragEnd={() => setDraggedTaskId(null)}
+                            onTouchStart={() => canUpdateTask && setDraggedTaskId(task.id)}
+                          >
+                            <div className={getTaskPriorityRibbonClass(task.priority)}>{getTaskPriorityLabel(task.priority)}</div>
+                            <button
+                              type="button"
+                              className="task-summary"
+                              onClick={() => setOpenTaskId((current) => (current === task.id ? null : task.id))}
+                            >
+                              <div className="task-summary-main">
+                                <strong>{task.title}</strong>
+                                <small>{task.assignees?.join(', ') || 'Non assigne'}</small>
+                              </div>
+                              <div className="task-summary-meta">
+                                <span className={`pill ${getTaskStatusBadgeClass(task)}`}>{getTaskStatus(task)}</span>
+                                {getTaskPriorityLabel(task.priority) === 'Urgent' ? (
+                                  <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
+                                ) : null}
+                              </div>
+                            </button>
+                            {isOpen && (
+                              <div className="task-details">
+                                <div className="details-row">
+                                  <span>Description</span>
+                                  <strong>{task.description || '-'}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Responsables</span>
+                                  <strong>{task.assignees?.join(', ') || 'Non assigne'}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Priorite</span>
+                                  <strong>{task.priority}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Statut</span>
+                                  <strong>{getTaskStatus(task)}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Date</span>
+                                  <strong>{task.dueDate || '-'}</strong>
+                                </div>
+                                {(canUpdateTask || canDeleteTask || canArchiveTask) && (
+                                  <div className="admin-doc-actions">
+                                    {canUpdateTask && (
+                                      <>
+                                        {getTaskStatus(task) !== 'A faire' && (
+                                          <button
+                                            type="button"
+                                            className="secondary-button compact"
+                                            onClick={() => onSetTaskStatus(task.id, 'A faire')}
+                                          >
+                                            <FontAwesomeIcon icon={faArrowLeft} />
+                                            {'A faire'}
+                                          </button>
+                                        )}
+                                        {getTaskStatus(task) !== 'En cours' && (
+                                          <button
+                                            type="button"
+                                            className="secondary-button compact"
+                                            onClick={() => onSetTaskStatus(task.id, 'En cours')}
+                                          >
+                                            <FontAwesomeIcon icon={faEye} />
+                                            En cours
+                                          </button>
+                                        )}
+                                        {getTaskStatus(task) !== 'Terminee' && (
+                                          <button
+                                            type="button"
+                                            className="secondary-button compact"
+                                            onClick={() => onSetTaskStatus(task.id, 'Terminee')}
+                                          >
+                                            <FontAwesomeIcon icon={faArrowUp} />
+                                            Terminer
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                    {canDeleteTask && (
+                                      <button type="button" className="icon-button danger" onClick={() => onDeleteTask(task.id)}>
+                                        <FontAwesomeIcon icon={faTrash} />
+                                      </button>
+                                    )}
+                                    {canArchiveTask ?(
+                                      <button type="button" className="secondary-button compact archive-button" onClick={() => onToggleTaskArchived?.(task.id, !task.archived)}>
+                                        {task.archived ? 'Restaurer' : 'Archiver'}
+                                      </button>
+                                    ) : null}
+                                    {canUpdateTask && (
+                                      <button type="button" className="secondary-button compact" onClick={() => setEditingTask(task)}>
+                                        Modifier
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <div className="summary-card">
+                        <div className="summary-row">
+                          <span>Aucune tache</span>
+                          <strong>-</strong>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {editingTask && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card light-modal">
             <div className="panel-heading compact">
               <div>
-                <h3>Modifier une tâche</h3>
+                <h3>Modifier une tache</h3>
               </div>
             </div>
             <div className="form-grid">
@@ -3702,7 +4307,7 @@ function CompactProjectTasksTab({
                 <input type="text" value={editingTask.interventionType} onChange={(event) => setEditingTask((current) => ({ ...current, interventionType: event.target.value }))} />
               </label>
               <label className="field">
-                <span>Priorité</span>
+                <span>Priorite</span>
                 <input type="text" value={editingTask.priority} onChange={(event) => setEditingTask((current) => ({ ...current, priority: event.target.value }))} />
               </label>
               <label className="field">
@@ -3725,8 +4330,8 @@ function CompactProjectTasksTab({
               <button
                 type="button"
                 className="action-button"
-                onClick={() => {
-                  onUpdateTask(editingTask.id, editingTask);
+                onClick={async () => {
+                  await onUpdateTask?.({ taskId: editingTask.id, updates: editingTask, projectId: project.id, sectionIdMap: project.sectionIdMap || {} });
                   setEditingTask(null);
                 }}
               >
@@ -3739,107 +4344,266 @@ function CompactProjectTasksTab({
     </div>
   );
 }
-
 function CompactActorsTab({ project }) {
   return <ActorsTab project={project} />;
 }
 
-function TasksSection({ project, projects }) {
+function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
+  const [draggedTaskId, setDraggedTaskId] = useState(null);
+  const [openTaskId, setOpenTaskId] = useState(null);
+  const sections = useMemo(() => {
+    const names = Array.from(new Set((tasks ?? []).map((task) => (task.source || 'Personnel').trim() || 'Personnel')));
+    return names.length ? names : ['Personnel'];
+  }, [tasks]);
+  const [selectedSection, setSelectedSection] = useState(sections[0] ?? 'Personnel');
+
+  useEffect(() => {
+    setSelectedSection((current) => (current && sections.includes(current) ? current : sections[0] ?? 'Personnel'));
+  }, [sections]);
+
+  const sectionTasks = (tasks ?? []).filter((task) => ((task.source || 'Personnel').trim() || 'Personnel') === selectedSection);
+
+  return (
+    <div className="task-module">
+      <div className="section-selector">
+        {sections.map((section) => {
+          const taskCount = (tasks ?? []).filter((task) => ((task.source || 'Personnel').trim() || 'Personnel') === section).length;
+          const isActive = selectedSection === section;
+          return (
+            <button
+              key={section}
+              type="button"
+              className={`section-chip ${isActive ? 'is-active' : ''}`}
+              onClick={() => setSelectedSection(section)}
+            >
+              <span>{section}</span>
+              <span className="pill">{taskCount}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedSection ?(
+        <div className="section-panel">
+          <div className="section-panel-header">
+            <div>
+              <h3>{selectedSection}</h3>
+              <p>{sectionTasks.length} tache{sectionTasks.length > 1 ? 's' : ''} dans cette section</p>
+            </div>
+          </div>
+          <div className="project-task-board">
+            {taskStatusOptions.map((status) => {
+              const columnTasks = sectionTasks.filter((task) => getTaskStatus(task) === status.id);
+
+              return (
+                <div
+                  key={status.id}
+                  className={`project-task-column ${getTaskStatusToneClass(status.id)}`}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (draggedTaskId) {
+                      onSetTaskStatus(draggedTaskId, status.id);
+                      setDraggedTaskId(null);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (draggedTaskId) {
+                      onSetTaskStatus(draggedTaskId, status.id);
+                      setDraggedTaskId(null);
+                    }
+                  }}
+                >
+                  <div className={`project-task-column-header ${getTaskStatusToneClass(status.id)}`}>
+                    <strong>{status.label}</strong>
+                    <span className="pill">{columnTasks.length}</span>
+                  </div>
+
+                  <div className="task-list project-task-column-list">
+                    {columnTasks.length ?(
+                      columnTasks.map((task) => {
+                        const isOpen = openTaskId === task.id;
+                        return (
+                          <article
+                            key={task.id}
+                            className={`task-item ${getTaskStatusToneClass(getTaskStatus(task))} ${isOpen ? 'is-open' : ''}`}
+                            draggable
+                            onDragStart={() => setDraggedTaskId(task.id)}
+                            onDragEnd={() => setDraggedTaskId(null)}
+                            onTouchStart={() => setDraggedTaskId(task.id)}
+                          >
+                            <div className={getTaskPriorityRibbonClass(task.priority)}>{getTaskPriorityLabel(task.priority)}</div>
+                            <button
+                              type="button"
+                              className="task-summary"
+                              onClick={() => setOpenTaskId((current) => (current === task.id ? null : task.id))}
+                            >
+                              <div className="task-summary-main">
+                                <strong>{task.title}</strong>
+                                <small>{task.dueDate || '-'}</small>
+                              </div>
+                              <div className="task-summary-meta">
+                                <span className={`pill ${getTaskStatusBadgeClass(task)}`}>{getTaskStatus(task)}</span>
+                            {getTaskPriorityLabel(task.priority) === 'Urgent' ? (
+                              <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
+                            ) : null}
+                              </div>
+                            </button>
+                            {isOpen && (
+                              <div className="task-details">
+                                <div className="details-row">
+                                  <span>Description</span>
+                                  <strong>{task.description || task.source || '-'}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Priorite</span>
+                                  <strong>{task.priority}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Statut</span>
+                                  <strong>{getTaskStatus(task)}</strong>
+                                </div>
+                                <div className="details-row">
+                                  <span>Date</span>
+                                  <strong>{task.dueDate || '-'}</strong>
+                                </div>
+                                <div className="admin-doc-actions">
+                                  {getTaskStatus(task) !== 'A faire' && (
+                                    <button type="button" className="secondary-button compact" onClick={() => onSetTaskStatus(task.id, 'A faire')}>
+                                      <FontAwesomeIcon icon={faArrowLeft} />
+                                      {'A faire'}
+                                    </button>
+                                  )}
+                                  {getTaskStatus(task) !== 'En cours' && (
+                                    <button type="button" className="secondary-button compact" onClick={() => onSetTaskStatus(task.id, 'En cours')}>
+                                      <FontAwesomeIcon icon={faEye} />
+                                      En cours
+                                    </button>
+                                  )}
+                                  {getTaskStatus(task) !== 'Terminee' && (
+                                    <button type="button" className="secondary-button compact" onClick={() => onSetTaskStatus(task.id, 'Terminee')}>
+                                      <FontAwesomeIcon icon={faArrowUp} />
+                                      Terminer
+                                    </button>
+                                  )}
+                                  <button type="button" className="icon-button danger" onClick={() => onDeleteTask(task.id)}>
+                                    <FontAwesomeIcon icon={faTrash} />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <div className="summary-card">
+                        <div className="summary-row">
+                          <span>Aucune tache</span>
+                          <strong>-</strong>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, onSavePersonalTask, onUpdateTask, onDeleteTask }) {
   const [taskScope, setTaskScope] = useState('personnel');
-  const [personalTasks, setPersonalTasks] = useState(demoWorkspace.personalTasks);
-  const [draggedPersonalTaskId, setDraggedPersonalTaskId] = useState(null);
-  const [draggedProjectTaskId, setDraggedProjectTaskId] = useState(null);
-  const [openPersonalTaskId, setOpenPersonalTaskId] = useState(null);
-  const [openProjectTaskId, setOpenProjectTaskId] = useState(null);
+  const [personalTasks, setPersonalTasks] = useState(sourcePersonalTasks);
   const [projectTaskMap, setProjectTaskMap] = useState(
     Object.fromEntries(projects.map((item) => [item.id, item.tasks]))
   );
-  const [openProjects, setOpenProjects] = useState(
-    Object.fromEntries(projects.map((item) => [item.id, item.id === (project?.id ?? projects[0]?.id)]))
-  );
-  const [openProjectSections, setOpenProjectSections] = useState(
-    Object.fromEntries(projects.flatMap((item) => (item.sections ?? []).map((section) => [
-      `${item.id}:${section}`,
-      true,
-    ])))
-  );
+  const [selectedProjectId, setSelectedProjectId] = useState(project?.id ?? projects[0]?.id ?? null);
   const [isPersonalTaskModalOpen, setIsPersonalTaskModalOpen] = useState(false);
   const [newPersonalTask, setNewPersonalTask] = useState({
     title: '',
     dueDate: '',
-    priority: 'Moyenne',
+    priority: 'Pas urgent',
     source: '',
   });
 
   useEffect(() => {
+    setPersonalTasks(sourcePersonalTasks);
     setProjectTaskMap(Object.fromEntries(projects.map((item) => [item.id, item.tasks])));
-    setOpenProjects(Object.fromEntries(projects.map((item) => [item.id, item.id === (project?.id ?? projects[0]?.id)])));
-    setOpenProjectSections(
-      Object.fromEntries(projects.flatMap((item) => (item.sections ?? []).map((section) => [
-        `${item.id}:${section}`,
-        true,
-      ])))
-    );
+  }, [project, projects, sourcePersonalTasks]);
+
+  useEffect(() => {
+    setSelectedProjectId((current) => {
+      if (current && projects.some((item) => item.id === current)) return current;
+      return project?.id ?? projects[0]?.id ?? null;
+    });
   }, [project, projects]);
 
-  const savePersonalTask = () => {
+  const savePersonalTask = async () => {
     if (!newPersonalTask.title.trim()) {
       return;
     }
 
-    setPersonalTasks((current) => [
-      {
-        id: `personal-task-${Date.now()}`,
-        title: newPersonalTask.title.trim(),
-        dueDate: newPersonalTask.dueDate || new Date().toISOString().slice(0, 10),
-        priority: newPersonalTask.priority,
-        source: newPersonalTask.source.trim() || 'Personnel',
-        description: newPersonalTask.source.trim() || '',
-        status: 'À faire',
-      },
-      ...current,
-    ]);
-    setNewPersonalTask({ title: '', dueDate: '', priority: 'Moyenne', source: '' });
+    const optimisticTask = {
+      id: `personal-task-${Date.now()}`,
+      title: newPersonalTask.title.trim(),
+      dueDate: newPersonalTask.dueDate || new Date().toISOString().slice(0, 10),
+      priority: newPersonalTask.priority,
+      source: newPersonalTask.source.trim() || 'Personnel',
+      description: newPersonalTask.source.trim() || '',
+      status: 'A faire',
+    };
+    setPersonalTasks((current) => [optimisticTask, ...current]);
+    const result = await onSavePersonalTask?.({
+      title: newPersonalTask.title.trim(),
+      dueDate: newPersonalTask.dueDate || new Date().toISOString().slice(0, 10),
+      priority: newPersonalTask.priority,
+      source: newPersonalTask.source.trim() || 'Personnel',
+    });
+    if (result === null) {
+      setPersonalTasks((current) => current.filter((task) => task.id !== optimisticTask.id));
+      return;
+    }
+    setNewPersonalTask({ title: '', dueDate: '', priority: 'Pas urgent', source: '' });
     setIsPersonalTaskModalOpen(false);
   };
 
-  const togglePersonalTask = (taskId) => {
+  const movePersonalTask = async (taskId, nextStatus) => {
     setPersonalTasks((current) =>
-      current.map((task) =>
-        task.id !== taskId
-          ? task
-          : updateTaskStatus(task, getTaskStatus(task) === 'Terminée' ? 'À faire' : 'Terminée')
-      )
+      current.map((task) => (task.id !== taskId ?task : updateTaskStatus(task, nextStatus)))
     );
+    await onUpdateTask?.({ taskId, updates: { status: nextStatus }, projectId: null, sectionIdMap: {} });
   };
 
-  const movePersonalTask = (taskId, nextStatus) => {
-    setPersonalTasks((current) =>
-      current.map((task) => (task.id !== taskId ? task : updateTaskStatus(task, nextStatus)))
-    );
+  const deletePersonalTask = async (taskId) => {
+    setPersonalTasks((current) => current.filter((task) => task.id !== taskId));
+    await onDeleteTask?.(taskId);
   };
 
-  const setProjectTaskStatus = (projectId, taskId, status) => {
+  const setProjectTaskStatus = async (projectId, taskId, status) => {
     setProjectTaskMap((current) => ({
       ...current,
       [projectId]: (current[projectId] ?? []).map((task) =>
-        task.id !== taskId ? task : updateTaskStatus(task, status)
+        task.id !== taskId ?task : updateTaskStatus(task, status)
       ),
     }));
+    await onUpdateTask?.({ taskId, updates: { status }, projectId, sectionIdMap: {} });
   };
 
-  const deleteProjectTask = (projectId, taskId) => {
+  const deleteProjectTask = async (projectId, taskId) => {
     setProjectTaskMap((current) => ({
       ...current,
       [projectId]: (current[projectId] ?? []).filter((task) => task.id !== taskId),
     }));
+    await onDeleteTask?.(taskId);
   };
 
   return (
     <section className="panel light-panel compact-screen">
       <div className="panel-heading compact dense-heading">
         <div>
-          <h3>{'Tâches'}</h3>
+          <h3>{'Taches'}</h3>
         </div>
       </div>
 
@@ -3865,11 +4629,11 @@ function TasksSection({ project, projects }) {
           <article className="light-card tasks-dashboard-card">
             <div className="panel-heading compact">
               <div>
-                <h3>{'Mes tâches'}</h3>
+                <h3>{'Mes taches'}</h3>
               </div>
               <div className="header-actions">
                 <span className="pill pill-electric">
-                  {personalTasks.filter((task) => getTaskStatus(task) !== 'Terminée').length} actives
+                  {personalTasks.filter((task) => getTaskStatus(task) !== 'Terminee').length} actives
                 </span>
                 <button type="button" className="action-button compact" onClick={() => setIsPersonalTaskModalOpen(true)}>
                   <FontAwesomeIcon icon={faPlus} />
@@ -3877,262 +4641,74 @@ function TasksSection({ project, projects }) {
                 </button>
               </div>
             </div>
-
-            <div className="personal-board">
-              {taskStatusOptions.map((column) => (
-                <div
-                  key={column.id}
-                  className="personal-board-column"
-                  onDragOver={(event) => event.preventDefault()}
-                  onTouchEnd={() => {
-                    if (draggedPersonalTaskId) {
-                      movePersonalTask(draggedPersonalTaskId, column.id);
-                      setDraggedPersonalTaskId(null);
-                    }
-                  }}
-                  onDrop={() => {
-                    if (draggedPersonalTaskId) {
-                      movePersonalTask(draggedPersonalTaskId, column.id);
-                      setDraggedPersonalTaskId(null);
-                    }
-                  }}
-                >
-                  <div className="personal-board-header">
-                    <strong>{column.label}</strong>
-                    <span className="pill">{personalTasks.filter((task) => getTaskStatus(task) === column.id).length}</span>
-                  </div>
-
-                  <div className="personal-board-list">
-                    {personalTasks
-                      .filter((task) => getTaskStatus(task) === column.id)
-                      .map((task) => (
-                        <article
-                          key={task.id}
-                          className={`task-item ${openPersonalTaskId === task.id ? 'is-open' : ''}`}
-                          draggable
-                          onDragStart={() => setDraggedPersonalTaskId(task.id)}
-                          onDragEnd={() => setDraggedPersonalTaskId(null)}
-                          onTouchStart={() => setDraggedPersonalTaskId(task.id)}
-                        >
-                          <button
-                            type="button"
-                            className="task-summary"
-                            onClick={() => setOpenPersonalTaskId((current) => (current === task.id ? null : task.id))}
-                          >
-                            <div className="task-summary-main">
-                              <strong>{task.title}</strong>
-                              <small>{task.source} • {task.dueDate} • {task.priority}</small>
-                            </div>
-                            <div className="task-summary-meta">
-                              <span className="pill pill-electric">{getTaskStatus(task)}</span>
-                            </div>
-                          </button>
-                          {openPersonalTaskId === task.id && (
-                            <div className="task-details">
-                              <div className="details-row">
-                                <span>Description</span>
-                                <strong>{task.description || task.source || '-'}</strong>
-                              </div>
-                              <div className="inline-actions">
-                                <button type="button" className="secondary-button compact" onClick={() => togglePersonalTask(task.id)}>
-                                  {getTaskStatus(task) === 'Terminée' ? 'Réouvrir' : 'Terminer'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="secondary-button compact"
-                                  onClick={() => setPersonalTasks((current) => current.filter((item) => item.id !== task.id))}
-                                >
-                                  Supprimer
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </article>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <CompactPersonalTasksTab
+              tasks={personalTasks}
+              onDeleteTask={deletePersonalTask}
+              onSetTaskStatus={movePersonalTask}
+            />
           </article>
         </div>
       )}
 
       {taskScope === 'projet' && (
         <div className="tasks-dashboard single-column">
-          {projects.map((projectItem) => {
-            const tasks = projectTaskMap[projectItem.id] ?? [];
+          <div className="project-task-selector">
+            {projects.map((projectItem) => {
+              const tasks = projectTaskMap[projectItem.id] ?? [];
+              const activeTasks = tasks.filter((task) => getTaskStatus(task) !== 'Terminee').length;
+              const isSelected = selectedProjectId === projectItem.id;
 
-            return (
-              <article key={projectItem.id} className="light-card tasks-dashboard-card project-task-card">
+              return (
                 <button
+                  key={projectItem.id}
                   type="button"
-                  className="section-header tasks-dashboard-header"
-                  onClick={() => setOpenProjects((current) => ({ ...current, [projectItem.id]: !current[projectItem.id] }))}
+                  className={`project-task-tile ${isSelected ? 'is-active' : ''}`}
+                  onClick={() => setSelectedProjectId((current) => (current === projectItem.id ? null : projectItem.id))}
                 >
-                  <span>
-                    {projectItem.name}
-                    <small>{projectItem.site} • {tasks.length} {'tâche(s)'}</small>
+                  <span className="project-task-tile-name">{projectItem.name}</span>
+                  <span className="project-task-tile-site">{projectItem.site || '-'}</span>
+                  <span className="project-task-tile-meta">
+                    <strong>{activeTasks}</strong>
+                    <small>actives</small>
                   </span>
-                  <span>{openProjects[projectItem.id] ? '-' : '+'}</span>
                 </button>
+              );
+            })}
+          </div>
 
-                {openProjects[projectItem.id] && (
-                  <div className="stack-list compact-stack-list view-mode-list">
-                    {tasks.length ? (
-                      (projectItem.sections ?? []).map((section) => {
-                        const sectionKey = `${projectItem.id}:${section}`;
-                        const sectionTasks = tasks.filter((task) => task.section === section);
+          {projects
+            .filter((projectItem) => projectItem.id === selectedProjectId)
+            .map((projectItem) => {
+              const tasks = projectTaskMap[projectItem.id] ?? [];
 
-                        return (
-                          <div key={sectionKey} className="section-block compact-project-section">
-                            <button
-                              type="button"
-                              className="section-header"
-                              onClick={() =>
-                                setOpenProjectSections((current) => ({
-                                  ...current,
-                                  [sectionKey]: !current[sectionKey],
-                                }))
-                              }
-                            >
-                              <span>{section}</span>
-                              <span>{openProjectSections[sectionKey] ? '-' : '+'}</span>
-                            </button>
-
-                            {openProjectSections[sectionKey] && (
-                              <div className="project-task-board">
-                                {taskStatusOptions.map((status) => {
-                                  const columnTasks = sectionTasks.filter((task) => getTaskStatus(task) === status.id);
-
-                                  return (
-                                    <div
-                                      key={`${sectionKey}:${status.id}`}
-                                      className="project-task-column"
-                                      onDragOver={(event) => event.preventDefault()}
-                                      onDrop={() => {
-                                        if (draggedProjectTaskId) {
-                                          setProjectTaskStatus(projectItem.id, draggedProjectTaskId, status.id);
-                                          setDraggedProjectTaskId(null);
-                                        }
-                                      }}
-                                      onTouchEnd={() => {
-                                        if (draggedProjectTaskId) {
-                                          setProjectTaskStatus(projectItem.id, draggedProjectTaskId, status.id);
-                                          setDraggedProjectTaskId(null);
-                                        }
-                                      }}
-                                    >
-                                      <div className="project-task-column-header">
-                                        <strong>{status.label}</strong>
-                                        <span className="pill">{columnTasks.length}</span>
-                                      </div>
-
-                                      <div className="task-list project-task-column-list">
-                                        {columnTasks.length ? (
-                                          columnTasks.map((task) => (
-                                            <article
-                                              key={task.id}
-                                              className={`task-item ${openProjectTaskId === task.id ? 'is-open' : ''}`}
-                                              draggable
-                                              onDragStart={() => setDraggedProjectTaskId(task.id)}
-                                              onDragEnd={() => setDraggedProjectTaskId(null)}
-                                              onTouchStart={() => setDraggedProjectTaskId(task.id)}
-                                            >
-                                              <button
-                                                type="button"
-                                                className="task-summary"
-                                                onClick={() => setOpenProjectTaskId((current) => (current === task.id ? null : task.id))}
-                                              >
-                                                <div className="task-summary-main">
-                                                  <strong>{task.title}</strong>
-                                                  <small>
-                                                    {task.assignees?.join(', ') || 'Non assigné'}
-                                                  </small>
-                                                </div>
-                                                <div className="task-summary-meta">
-                                                  <span className="pill pill-electric">{task.interventionType || '-'}</span>
-                                                </div>
-                                              </button>
-                                              {openProjectTaskId === task.id && (
-                                                <div className="task-details">
-                                                  <div className="details-row">
-                                                    <span>Description</span>
-                                                    <strong>{task.description || '-'}</strong>
-                                                  </div>
-                                                  <div className="details-row">
-                                                    <span>Statut</span>
-                                                    <strong>{getTaskStatus(task)}</strong>
-                                                  </div>
-                                                  <div className="inline-actions">
-                                                    {getTaskStatus(task) !== '? faire' && (
-                                                      <button
-                                                        type="button"
-                                                        className="secondary-button compact"
-                                                        onClick={() => setProjectTaskStatus(projectItem.id, task.id, 'À faire')}
-                                                      >
-                                                        {'À faire'}
-                                                      </button>
-                                                    )}
-                                                    {getTaskStatus(task) !== 'En cours' && (
-                                                      <button
-                                                        type="button"
-                                                        className="secondary-button compact"
-                                                        onClick={() => setProjectTaskStatus(projectItem.id, task.id, 'En cours')}
-                                                      >
-                                                        En cours
-                                                      </button>
-                                                    )}
-                                                    {getTaskStatus(task) !== 'Termin?e' && (
-                                                      <button
-                                                        type="button"
-                                                        className="secondary-button compact"
-                                                        onClick={() => setProjectTaskStatus(projectItem.id, task.id, 'Terminée')}
-                                                      >
-                                                        Terminer
-                                                      </button>
-                                                    )}
-                                                    <button
-                                                      type="button"
-                                                      className="secondary-button compact"
-                                                      onClick={() => deleteProjectTask(projectItem.id, task.id)}
-                                                    >
-                                                      Supprimer
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </article>
-                                          ))
-                                        ) : (
-                                          <div className="summary-card">
-                                            <div className="summary-row">
-                                              <span>{'Aucune t?che'}</span>
-                                              <strong>-</strong>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="summary-card">
-                        <div className="summary-row">
-                          <span>{'Aucune t?che'}</span>
-                          <strong>-</strong>
-                        </div>
-                      </div>
-                    )}
+              return (
+                <article key={projectItem.id} className="light-card tasks-dashboard-card project-task-card">
+                  <div className="panel-heading compact">
+                    <div>
+                      <h3>{projectItem.name}</h3>
+                      <p className="topbar-subcopy">{projectItem.site} - {tasks.length} tache(s)</p>
+                    </div>
                   </div>
-                )}
-              </article>
-            );
-          })}
+                  <CompactProjectTasksTab
+                    canArchiveTask={false}
+                    canCreateSection={false}
+                    canCreateTask={false}
+                    canDeleteTask={true}
+                    canUpdateTask={true}
+                    onDeleteTask={(taskId) => deleteProjectTask(projectItem.id, taskId)}
+                    onOpenSectionModal={null}
+                    onOpenTaskModal={null}
+                    onSetTaskStatus={(taskId, status) => setProjectTaskStatus(projectItem.id, taskId, status)}
+                    onToggleSection={() => {}}
+                    onToggleTaskArchived={null}
+                    onUpdateTask={async ({ taskId, updates }) => onUpdateTask?.({ taskId, updates, projectId: projectItem.id, sectionIdMap: {} })}
+                    openSections={{}}
+                    project={{ ...projectItem, tasks }}
+                    showTaskRecapControl={false}
+                  />
+                </article>
+              );
+            })}
         </div>
       )}
 
@@ -4142,7 +4718,7 @@ function TasksSection({ project, projects }) {
             <div className="panel-heading compact">
               <div>
                 <p className="eyebrow">Personnel</p>
-                <h3>{'Ajouter une tâche'}</h3>
+                <h3>{'Ajouter une tache'}</h3>
               </div>
             </div>
             <div className="form-grid">
@@ -4155,7 +4731,7 @@ function TasksSection({ project, projects }) {
                 />
               </label>
               <label className="field">
-                <span>Échéance</span>
+                <span>Echeance</span>
                 <input
                   type="date"
                   value={newPersonalTask.dueDate}
@@ -4163,14 +4739,13 @@ function TasksSection({ project, projects }) {
                 />
               </label>
               <label className="field">
-                <span>Priorité</span>
+                <span>Priorite</span>
                 <select
                   value={newPersonalTask.priority}
                   onChange={(event) => setNewPersonalTask((current) => ({ ...current, priority: event.target.value }))}
                 >
-                  <option value="Basse">Basse</option>
-                  <option value="Moyenne">Moyenne</option>
-                  <option value="Haute">Haute</option>
+                  <option value="Pas urgent">Pas urgent</option>
+                  <option value="Urgent">Urgent</option>
                 </select>
               </label>
               <label className="field field-full">
@@ -4199,83 +4774,20 @@ function TasksSection({ project, projects }) {
   );
 }
 
-function MessagesSection({ project, preferredConversationId = null }) {
-  const projectConversations = useMemo(() => getProjectActorConversations(project), [project]);
-  const createTextMessage = (conversation, idSuffix, author, text, time, own, status = 'Lu') => ({
-    id: `${conversation.id}-${idSuffix}`,
-    author,
-    text,
-    time,
-    own,
-    status,
-    attachment: null,
-  });
-
-  const createAttachmentMessage = (conversationId, attachment, time) => ({
-    id: `${conversationId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    author: 'Vous',
-    text: attachment.kind === 'image' ? `Photo envoyée : ${attachment.name}` : `Pièce jointe : ${attachment.name}`,
-    time,
-    own: true,
-    status: 'Envoyé',
-    attachment,
-  });
-
-  const buildThread = (conversation) => {
-    if (!conversation) {
-      return [];
-    }
-
-    return [
-      createTextMessage(conversation, '1', conversation.name, conversation.preview, '08:42', false),
-      createTextMessage(conversation, '2', 'Vous', 'Bien reçu, je vérifie et je vous fais un retour dans la foulée.', '08:48', true),
-      createTextMessage(conversation, '3', conversation.name, 'Parfait, merci.', '08:49', false),
-    ];
-  };
-
+function MessagesSection({ directMessages = [], friends = [], preferredConversationId = null, currentUserName, onSendMessage, onOpenPrivateDiscussion }) {
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [messageDraft, setMessageDraft] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [attachmentSort, setAttachmentSort] = useState('recent');
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
-  const initialMessagesByConversation = useMemo(
-    () => Object.fromEntries(projectConversations.map((conversation) => [
-      conversation.id,
-      [
-        {
-          id: `${conversation.id}-1`,
-          author: conversation.name,
-          text: conversation.preview,
-          time: '08:42',
-          own: false,
-          status: 'Lu',
-          attachment: null,
-        },
-        {
-          id: `${conversation.id}-2`,
-          author: 'Vous',
-          text: 'Bien reçu, je vérifie et je vous fais un retour dans la foulée.',
-          time: '08:48',
-          own: true,
-          status: 'Lu',
-          attachment: null,
-        },
-        {
-          id: `${conversation.id}-3`,
-          author: conversation.name,
-          text: 'Parfait, merci.',
-          time: '08:49',
-          own: false,
-          status: 'Lu',
-          attachment: null,
-        },
-      ],
-    ])),
-    [projectConversations]
-  );
-  const [messagesByConversation, setMessagesByConversation] = useState(initialMessagesByConversation);
   const galleryInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+
+  const initialMessagesByConversation = useMemo(
+    () => Object.fromEntries((directMessages ?? []).map((conversation) => [conversation.id, conversation.messages ?? []])),
+    [directMessages]
+  );
+  const [messagesByConversation, setMessagesByConversation] = useState(initialMessagesByConversation);
 
   useEffect(() => {
     setSelectedConversationId(null);
@@ -4289,19 +4801,19 @@ function MessagesSection({ project, preferredConversationId = null }) {
       return;
     }
 
-    const preferredConversationExists = projectConversations.some((conversation) => conversation.id === preferredConversationId);
+    const preferredConversationExists = (directMessages ?? []).some((conversation) => conversation.id === preferredConversationId);
     if (preferredConversationExists) {
       setSelectedConversationId(preferredConversationId);
     }
-  }, [preferredConversationId, projectConversations]);
+  }, [preferredConversationId, directMessages]);
 
-  const conversationRows = projectConversations
+  const conversationRows = (directMessages ?? [])
     .map((conversation) => {
-      const thread = messagesByConversation[conversation.id] ?? buildThread(conversation);
+      const thread = messagesByConversation[conversation.id] ?? conversation.messages ?? [];
       const lastMessage = thread[thread.length - 1];
       const preview = lastMessage?.attachment
-        ? `${lastMessage.attachment.kind === 'image' ? 'Photo' : 'Pièce jointe'} : ${lastMessage.attachment.name}`
-        : (lastMessage?.text ?? conversation.preview);
+        ?`${lastMessage.attachment.kind === 'image' ? 'Photo' : 'Piece jointe'} : ${lastMessage.attachment.name}`
+        : (lastMessage?.text ?? conversation.preview ?? 'Aucun message');
 
       return {
         ...conversation,
@@ -4324,8 +4836,9 @@ function MessagesSection({ project, preferredConversationId = null }) {
       return rightValue - leftValue;
     });
 
-  const selectedConversation = conversationRows.find((conversation) => conversation.id === selectedConversationId)
-    ?? projectConversations.find((conversation) => conversation.id === selectedConversationId)
+  const selectedConversation =
+    conversationRows.find((conversation) => conversation.id === selectedConversationId)
+    ?? (directMessages ?? []).find((conversation) => conversation.id === selectedConversationId)
     ?? null;
 
   const thread = useMemo(
@@ -4356,21 +4869,21 @@ function MessagesSection({ project, preferredConversationId = null }) {
           if (left.attachment.kind === right.attachment.kind) {
             return rightValue - leftValue;
           }
-          return left.attachment.kind === 'image' ? -1 : 1;
+          return left.attachment.kind === 'image' ?-1 : 1;
         }
 
         if (attachmentSort === 'files') {
           if (left.attachment.kind === right.attachment.kind) {
             return rightValue - leftValue;
           }
-          return left.attachment.kind === 'file' ? -1 : 1;
+          return left.attachment.kind === 'file' ?-1 : 1;
         }
 
         return rightValue - leftValue;
       })
   ), [attachmentSort, thread]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const content = messageDraft.trim();
     if (!content || !selectedConversation) {
       return;
@@ -4387,15 +4900,16 @@ function MessagesSection({ project, preferredConversationId = null }) {
           text: content,
           time,
           own: true,
-          status: 'Envoyé',
+          status: 'Envoye',
           attachment: null,
         },
       ],
     }));
+    await onSendMessage?.({ conversationId: selectedConversation.id, text: content });
     setMessageDraft('');
   };
 
-  const addAttachmentToConversation = (file, kind) => {
+  const addAttachmentToConversation = async (file, kind) => {
     if (!file || !selectedConversation) {
       return;
     }
@@ -4413,9 +4927,18 @@ function MessagesSection({ project, preferredConversationId = null }) {
       ...current,
       [selectedConversation.id]: [
         ...(current[selectedConversation.id] ?? []),
-        createAttachmentMessage(selectedConversation.id, attachment, time),
+        {
+          id: `${selectedConversation.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          author: currentUserName || 'Vous',
+          text: attachment.kind === 'image' ?`Photo envoyee : ${attachment.name}` : `Piece jointe : ${attachment.name}`,
+          time,
+          own: true,
+          status: 'Envoye',
+          attachment,
+        },
       ],
     }));
+    await onSendMessage?.({ conversationId: selectedConversation.id, text: '', file });
     setIsAttachmentsOpen(true);
   };
 
@@ -4440,49 +4963,68 @@ function MessagesSection({ project, preferredConversationId = null }) {
       <div className="panel-heading compact dense-heading">
         <div>
           <h3>Messages</h3>
+          <p>Uniquement vos discussions privees avec vos amis.</p>
         </div>
-        <span className="pill pill-electric">{projectConversations.length} conversations</span>
+        <span className="pill pill-electric">{directMessages.length} discussions</span>
       </div>
       <div className={`messages-app ${selectedConversation ? 'has-open-thread' : ''}`}>
-        {!selectedConversation ? (
+        {!selectedConversation ?(
           <div className="messages-list-panel">
             <div className="messages-list-top">
               <div>
-                <strong>Discussions</strong>
-                <small>{project.name}</small>
+                <strong>Discussions privees</strong>
+                <small>Messages entre amis uniquement</small>
               </div>
-              <span className="pill">{projectConversations.length}</span>
+              <span className="pill">{directMessages.length}</span>
             </div>
             <div className="messages-search">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Rechercher une conversation"
+                placeholder="Rechercher une discussion"
               />
             </div>
-            <div className="messages-conversation-list">
-              {conversationRows.map((conversation) => (
-                <button
-                  key={conversation.id}
-                  type="button"
-                  className="message-list-card"
-                  onClick={() => setSelectedConversationId(conversation.id)}
-                >
-                  <span className="message-list-avatar">{conversation.name.slice(0, 2).toUpperCase()}</span>
-                  <span className="message-list-main">
-                    <span className="message-list-head">
-                      <strong>{conversation.name}</strong>
-                      <small>{conversation.lastTime}</small>
+            {conversationRows.length ?(
+              <div className="messages-conversation-list">
+                {conversationRows.map((conversation) => (
+                  <button
+                    key={conversation.id}
+                    type="button"
+                    className="message-list-card"
+                    onClick={() => setSelectedConversationId(conversation.id)}
+                  >
+                    <span className="message-list-avatar">{conversation.name.slice(0, 2).toUpperCase()}</span>
+                    <span className="message-list-main">
+                      <span className="message-list-head">
+                        <strong>{conversation.name}</strong>
+                        <small>{conversation.lastTime}</small>
+                      </span>
+                      <small className="message-list-preview">{conversation.preview}</small>
                     </span>
-                    <small className="message-list-preview">{conversation.preview}</small>
-                  </span>
-                  <span className="message-list-meta">
-                    {conversation.unread ? <span className="pill pill-electric">{conversation.unread}</span> : <small>Lu</small>}
-                  </span>
-                </button>
-              ))}
-            </div>
+                    <span className="message-list-meta">
+                      {conversation.unread ?<span className="pill pill-electric">{conversation.unread}</span> : <small>Lu</small>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state-card">
+                <strong>Aucune discussion privee</strong>
+                <p>Ouvrez une discussion depuis l"onglet Amis pour demarrer un echange.</p>
+                <div className="friends-grid friends-grid-inline">
+                  {(friends ?? []).slice(0, 6).map((friend) => (
+                    <button key={friend.id || friend.userId || friend.email} type="button" className="friend-inline-card" onClick={() => onOpenPrivateDiscussion?.(friend)}>
+                      <span className="friend-inline-avatar">{friend.name?.slice(0, 2).toUpperCase()}</span>
+                      <span className="friend-inline-main">
+                        <strong>{friend.name}</strong>
+                        <small>{friend.trade || friend.email || 'Contact'}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="messages-thread is-visible">
@@ -4501,7 +5043,7 @@ function MessagesSection({ project, preferredConversationId = null }) {
                 <span className="conversation-avatar large">{selectedConversation.name.slice(0, 2).toUpperCase()}</span>
                 <div>
                   <strong>{selectedConversation.name}</strong>
-                  <small>{selectedConversation.participants} participants</small>
+                  <small>Discussion privee</small>
                 </div>
               </div>
               <div className="thread-actions">
@@ -4511,23 +5053,23 @@ function MessagesSection({ project, preferredConversationId = null }) {
                   onClick={() => setIsAttachmentsOpen((current) => !current)}
                 >
                   <FontAwesomeIcon icon={faPaperclip} />
-                  Pièces jointes
+                  Pieces jointes
                 </button>
               </div>
             </div>
-            {isAttachmentsOpen ? (
+            {isAttachmentsOpen ?(
               <div className="attachments-panel">
                 <div className="attachments-panel-head">
-                  <strong>Pièces jointes</strong>
+                  <strong>Pieces jointes</strong>
                   <select value={attachmentSort} onChange={(event) => setAttachmentSort(event.target.value)}>
-                    <option value="recent">Récentes</option>
+                    <option value="recent">Recentes</option>
                     <option value="oldest">Anciennes</option>
                     <option value="images">Photos d'abord</option>
                     <option value="files">Fichiers d'abord</option>
                   </select>
                 </div>
                 <div className="attachments-list">
-                  {attachments.length > 0 ? (
+                  {attachments.length > 0 ?(
                     attachments.map((item) => (
                       <a
                         key={item.id}
@@ -4537,16 +5079,16 @@ function MessagesSection({ project, preferredConversationId = null }) {
                         rel="noreferrer"
                       >
                         <span className="attachment-item-icon">
-                          <FontAwesomeIcon icon={item.attachment.kind === 'image' ? faImage : faFile} />
+                          <FontAwesomeIcon icon={item.attachment.kind === 'image' ?faImage : faFile} />
                         </span>
                         <span className="attachment-item-main">
                           <strong>{item.attachment.name}</strong>
-                          <small>{item.author} • {item.time} • {item.attachment.sizeLabel}</small>
+                          <small>{item.author}  {item.time}  {item.attachment.sizeLabel}</small>
                         </span>
                       </a>
                     ))
                   ) : (
-                    <p className="attachments-empty">Aucune pièce jointe dans cette conversation.</p>
+                    <p className="attachments-empty">Aucune piece jointe dans cette discussion.</p>
                   )}
                 </div>
               </div>
@@ -4555,20 +5097,20 @@ function MessagesSection({ project, preferredConversationId = null }) {
               {thread.map((message) => (
                 <div key={message.id} className={`chat-row ${message.own ? 'is-own' : ''}`}>
                   <article className={`chat-bubble ${message.own ? 'is-own' : ''}`}>
-                    {!message.own ? <strong>{message.author}</strong> : null}
-                    {message.attachment?.kind === 'image' ? (
+                    {!message.own ?<strong>{message.author}</strong> : null}
+                    {message.attachment?.kind === 'image' ?(
                       <a href={message.attachment.url} target="_blank" rel="noreferrer" className="chat-attachment-preview">
                         <img src={message.attachment.url} alt={message.attachment.name} className="chat-image-preview" />
                       </a>
                     ) : null}
                     <p>{message.text}</p>
-                    {message.attachment?.kind === 'file' ? (
+                    {message.attachment?.kind === 'file' ?(
                       <a href={message.attachment.url} target="_blank" rel="noreferrer" className="chat-attachment-link">
                         <FontAwesomeIcon icon={faFile} />
                         <span>{message.attachment.name}</span>
                       </a>
                     ) : null}
-                    <small>{message.time}{message.own && message.status ? ` • ${message.status}` : ''}</small>
+                    <small>{message.time}{message.own && message.status ?`  ${message.status}` : ''}</small>
                   </article>
                 </div>
               ))}
@@ -4589,7 +5131,7 @@ function MessagesSection({ project, preferredConversationId = null }) {
                 className="messages-hidden-input"
                 onChange={handleCameraSelection}
               />
-              <button type="button" className="icon-button" onClick={() => galleryInputRef.current?.click()} aria-label="Ajouter une pièce jointe">
+              <button type="button" className="icon-button" onClick={() => galleryInputRef.current?.click()} aria-label="Ajouter une piece jointe">
                 <FontAwesomeIcon icon={faPaperclip} />
               </button>
               <button type="button" className="icon-button" onClick={() => cameraInputRef.current?.click()} aria-label="Prendre une photo">
@@ -4604,7 +5146,7 @@ function MessagesSection({ project, preferredConversationId = null }) {
                     sendMessage();
                   }
                 }}
-                placeholder="Écrire un message"
+                placeholder="0crire un message"
               />
               <button type="button" className="action-button" onClick={sendMessage}>
                 <FontAwesomeIcon icon={faPaperPlane} />
@@ -4617,12 +5159,12 @@ function MessagesSection({ project, preferredConversationId = null }) {
     </section>
   );
 }
-
-function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPrivateDiscussion }) {
+function FriendsSection({ friends, invitations = [], currentUserStatus, onChangeCurrentUserStatus, onInviteFriend, onOpenPrivateDiscussion, onRespondToInvitation }) {
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [startedChats, setStartedChats] = useState([]);
   const [presenceFilter, setPresenceFilter] = useState('online');
+  const [friendInviteForm, setFriendInviteForm] = useState({ name: '', trade: '', email: '' });
 
   const getFriendDetails = (friend) => {
     const slug = friend.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]+/g, '.').replace(/^\.|\.$/g, '');
@@ -4630,24 +5172,24 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
       Architecte: {
         company: 'Atelier Signature',
         city: 'Bruxelles',
-        skills: ['Plans', 'D\u00e9tails', 'Suivi esth\u00e9tique'],
+        skills: ['Plans', 'Details', 'Suivi esthetique'],
       },
       Entrepreneur: {
         company: 'Structure & Co',
         city: 'Uccle',
-        skills: ['Coordination', 'Planning', 'Ex\u00e9cution'],
+        skills: ['Coordination', 'Planning', 'Execution'],
       },
       Cliente: {
-        company: 'Client priv\u00e9',
+        company: 'Client prive',
         city: 'Watermael-Boitsfort',
-        skills: ['Validation', 'D\u00e9cisions', 'Suivi budget'],
+        skills: ['Validation', 'Decisions', 'Suivi budget'],
       },
     };
 
     const meta = tradeMeta[friend.trade] ?? {
-      company: 'R\u00e9seau Build In Peace',
+      company: 'Reseau Build In Peace',
       city: 'Bruxelles',
-      skills: ['Coordination', 'Suivi', '\u00c9changes'],
+      skills: ['Coordination', 'Suivi', 'Echanges'],
     };
 
     return {
@@ -4656,7 +5198,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
       company: meta.company,
       city: meta.city,
       skills: meta.skills,
-      note: friend.status === 'En ligne' ? 'Disponible pour d\u00e9marrer un \u00e9change imm\u00e9diat.' : 'Discussion disponible d\u00e8s ouverture de conversation.',
+      note: friend.status === 'En ligne' ? 'Disponible pour demarrer un echange immediat.' : 'Discussion disponible des ouverture de conversation.',
     };
   };
 
@@ -4664,20 +5206,20 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
     if (friend.status === 'En ligne') {
       return 'online';
     }
-    if (friend.status === 'Occup\u00e9') {
+    if (friend.status === 'Occupe') {
       return 'busy';
     }
     return 'offline';
   };
 
   const openDiscussion = (friend) => {
-    setStartedChats((current) => (current.includes(friend.id) ? current : [friend.id, ...current]));
+    setStartedChats((current) => (current.includes(friend.id) ?current : [friend.id, ...current]));
     onOpenPrivateDiscussion?.(friend);
   };
 
-  const orderedFriends = [...demoWorkspace.friends].sort((left, right) => {
-    const leftStarted = startedChats.includes(left.id) ? 1 : 0;
-    const rightStarted = startedChats.includes(right.id) ? 1 : 0;
+  const orderedFriends = [...friends].sort((left, right) => {
+    const leftStarted = startedChats.includes(left.id) ?1 : 0;
+    const rightStarted = startedChats.includes(right.id) ?1 : 0;
     return rightStarted - leftStarted;
   });
 
@@ -4713,9 +5255,38 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
         </div>
       </div>
 
+      {invitations.length ? (
+        <div className="friend-invitations-panel">
+          <div className="panel-heading compact">
+            <div>
+              <strong>Invitations recues</strong>
+              <small>{invitations.length} en attente</small>
+            </div>
+          </div>
+          <div className="friend-invitations-list">
+            {invitations.map((invite) => (
+              <article key={invite.id} className="friend-invite-card">
+                <div className="friend-invite-copy">
+                  <strong>{invite.name}</strong>
+                  <small>{invite.trade || 'Partenaire'} - {invite.email}</small>
+                </div>
+                <div className="friend-invite-actions">
+                  <button type="button" className="secondary-button compact" onClick={() => onRespondToInvitation?.(invite.id, 'refused')}>
+                    Refuser
+                  </button>
+                  <button type="button" className="action-button compact" onClick={() => onRespondToInvitation?.(invite.id, 'accepted')}>
+                    Accepter
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {!!startedChats.length && (
         <div className="friend-chat-banner">
-          <strong>{startedChats.length} discussion{startedChats.length > 1 ? 's' : ''} pr\u00eate{startedChats.length > 1 ? 's' : ''}</strong>
+          <strong>{startedChats.length} discussion{startedChats.length > 1 ? 's' : ''} prete{startedChats.length > 1 ? 's' : ''}</strong>
           <small>Clique sur un contact pour ouvrir ou reprendre une discussion.</small>
         </div>
       )}
@@ -4734,7 +5305,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
                     <strong>{friend.name}</strong>
                     <small>{friend.trade}</small>
                   </div>
-                  <span className={`friend-status friend-status-${tone}`}>{friend.status === 'Occup\u00e9' ? 'Occup\u00e9' : friend.status}</span>
+                  <span className={`friend-status friend-status-${tone}`}>{friend.status === 'Occupe' ? 'Occupe' : friend.status}</span>
                 </div>
                 <div className="friend-card-body">
                   <span>{details.company}</span>
@@ -4744,7 +5315,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
               <div className="friend-card-actions">
                 <button type="button" className={`action-button compact friend-action friend-action-${tone === 'offline' ? 'offline' : 'online'}`} onClick={() => openDiscussion(friend)}>
                   <FontAwesomeIcon icon={faComments} />
-                  {hasChat ? 'Discussion cr\u00e9\u00e9e' : 'Discuter'}
+                  {hasChat ? 'Discussion creee' : 'Discuter'}
                 </button>
                 <button type="button" className="secondary-button compact friend-action" onClick={() => setSelectedFriend(friend)}>
                   <FontAwesomeIcon icon={faEye} />
@@ -4754,12 +5325,12 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
             </article>
           );
         })}
-        {filteredFriends.length === 0 ? (
+        {filteredFriends.length === 0 ?(
           <article className="friend-card">
             <div className="friend-card-main">
               <div className="friend-card-copy">
                 <strong>Aucun contact</strong>
-                <small>Aucun profil ne correspond ? ce filtre.</small>
+                <small>Aucun profil ne correspond a ce filtre.</small>
               </div>
             </div>
           </article>
@@ -4779,7 +5350,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
             </div>
             <div className="details-card light-card friend-info-card">
               <div className="details-row">
-                <span>M\u00e9tier</span>
+                <span>Metier</span>
                 <strong>{selectedFriend.trade}</strong>
               </div>
               <div className="details-row">
@@ -4787,7 +5358,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
                 <strong>{selectedFriend.status}</strong>
               </div>
               <div className="details-row">
-                <span>Soci\u00e9t\u00e9</span>
+                <span>Societe</span>
                 <strong>{getFriendDetails(selectedFriend).company}</strong>
               </div>
               <div className="details-row">
@@ -4795,7 +5366,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
                 <strong>{getFriendDetails(selectedFriend).email}</strong>
               </div>
               <div className="details-row">
-                <span>T\u00e9l\u00e9phone</span>
+                <span>Telephone</span>
                 <strong>{getFriendDetails(selectedFriend).phone}</strong>
               </div>
               <div className="details-row">
@@ -4803,7 +5374,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
                 <strong>{getFriendDetails(selectedFriend).city}</strong>
               </div>
               <div className="details-row align-start">
-                <span>Comp\u00e9tences</span>
+                <span>Competences</span>
                 <strong>{getFriendDetails(selectedFriend).skills.join(', ')}</strong>
               </div>
               <div className="details-row align-start">
@@ -4812,7 +5383,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
               </div>
               <button type="button" className="action-button compact" onClick={() => openDiscussion(selectedFriend)}>
                 <FontAwesomeIcon icon={faComments} />
-                D?marrer une discussion
+                Demarrer une discussion
               </button>
             </div>
           </div>
@@ -4833,22 +5404,45 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
             <div className="form-grid">
               <label className="field">
                 <span>Nom</span>
-                <input type="text" placeholder="Nom du contact" />
+                <input
+                  type="text"
+                  placeholder="Nom du contact"
+                  value={friendInviteForm.name}
+                  onChange={(event) => setFriendInviteForm((current) => ({ ...current, name: event.target.value }))}
+                />
               </label>
               <label className="field">
-                <span>M\u00e9tier</span>
-                <input type="text" placeholder="Spécialité" />
+                <span>Metier</span>
+                <input
+                  type="text"
+                  placeholder="Specialite"
+                  value={friendInviteForm.trade}
+                  onChange={(event) => setFriendInviteForm((current) => ({ ...current, trade: event.target.value }))}
+                />
               </label>
               <label className="field field-full">
                 <span>Email</span>
-                <input type="email" placeholder="nom@entreprise.be" />
+                <input
+                  type="email"
+                  placeholder="nom@entreprise.be"
+                  value={friendInviteForm.email}
+                  onChange={(event) => setFriendInviteForm((current) => ({ ...current, email: event.target.value }))}
+                />
               </label>
             </div>
             <div className="modal-actions">
               <button type="button" className="secondary-button compact" onClick={() => setIsAddFriendOpen(false)}>
                 Annuler
               </button>
-              <button type="button" className="action-button compact" onClick={() => setIsAddFriendOpen(false)}>
+              <button
+                type="button"
+                className="action-button compact"
+                onClick={() => {
+                  onInviteFriend?.(friendInviteForm);
+                  setFriendInviteForm({ name: '', trade: '', email: '' });
+                  setIsAddFriendOpen(false);
+                }}
+              >
                 Envoyer
               </button>
             </div>
@@ -4858,7 +5452,7 @@ function FriendsSection({ currentUserStatus, onChangeCurrentUserStatus, onOpenPr
     </section>
   );
 }
-function ProfileSection({ profileForm, onChangeProfile }) {
+function ProfileSection({ profileForm, onChangeProfile, onSaveProfile, onSignOut }) {
   const initialProfile = {
     name: demoWorkspace.user.name,
     role: demoWorkspace.user.role,
@@ -4876,9 +5470,7 @@ function ProfileSection({ profileForm, onChangeProfile }) {
   };
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(initialProfile);
-  const updateProfileField = (field) => (event) => {
-    onChangeProfile((current) => ({ ...current, [field]: event.target.value }));
-  };
+  const [avatarFile, setAvatarFile] = useState(null);
   const updateDraftField = (field) => (event) => {
     setProfileDraft((current) => ({ ...current, [field]: event.target.value }));
   };
@@ -4887,6 +5479,7 @@ function ProfileSection({ profileForm, onChangeProfile }) {
     if (!file) {
       return;
     }
+    setAvatarFile(file);
     onChangeProfile((current) => ({
       ...current,
       avatarUrl: URL.createObjectURL(file),
@@ -4913,7 +5506,7 @@ function ProfileSection({ profileForm, onChangeProfile }) {
           <div className="profile-hero-top">
             <div className="profile-identity-card">
               <div className="profile-avatar-panel">
-                {profileForm.avatarUrl ? (
+                {profileForm.avatarUrl ?(
                   <img src={profileForm.avatarUrl} alt={profileForm.name} className="profile-avatar-large profile-avatar-image" />
                 ) : (
                   <span className="profile-avatar-large">{profileForm.name.slice(0, 2).toUpperCase()}</span>
@@ -4924,7 +5517,7 @@ function ProfileSection({ profileForm, onChangeProfile }) {
                 </label>
               </div>
               <div className="profile-showcase-copy">
-                <span className="profile-card-kicker">Identité</span>
+                <span className="profile-card-kicker">Identite</span>
                 <div className="profile-inline-topline">
                   <span className="profile-inline-title">{profileForm.name}</span>
                   <button
@@ -4942,7 +5535,7 @@ function ProfileSection({ profileForm, onChangeProfile }) {
                     Hors ligne
                   </button>
                 </div>
-                <p className="profile-hero-note">Profil principal utilisé dans les échanges chantier et les discussions.</p>
+                <p className="profile-hero-note">Profil principal utilise dans les echanges chantier et les discussions.</p>
                 <div className="profile-inline-headline">
                   <span className="profile-inline-chip">
                     <span className="profile-inline-subtitle">{profileForm.role}</span>
@@ -4981,12 +5574,12 @@ function ProfileSection({ profileForm, onChangeProfile }) {
 
           <div className="profile-edit-summary">
             <div className="details-row"><span>Email</span><strong>{profileForm.email}</strong></div>
-            <div className="details-row"><span>Téléphone</span><strong>{profileForm.phone}</strong></div>
-            <div className="details-row"><span>Rôle</span><strong>{profileForm.role}</strong></div>
-            <div className="details-row"><span>Société</span><strong>{profileForm.company}</strong></div>
+            <div className="details-row"><span>Telephone</span><strong>{profileForm.phone}</strong></div>
+            <div className="details-row"><span>Role</span><strong>{profileForm.role}</strong></div>
+            <div className="details-row"><span>Societe</span><strong>{profileForm.company}</strong></div>
             <div className="details-row"><span>Ville</span><strong>{profileForm.city}</strong></div>
-            <div className="details-row"><span>Spécialité</span><strong>{profileForm.specialty}</strong></div>
-            <div className="details-row"><span>Disponibilité</span><strong>{profileForm.availability}</strong></div>
+            <div className="details-row"><span>Specialite</span><strong>{profileForm.specialty}</strong></div>
+            <div className="details-row"><span>Disponibilite</span><strong>{profileForm.availability}</strong></div>
             <div className="details-row"><span>Zone</span><strong>{profileForm.zone}</strong></div>
             <div className="details-row"><span>Site web</span><strong>{profileForm.website}</strong></div>
           </div>
@@ -4997,8 +5590,11 @@ function ProfileSection({ profileForm, onChangeProfile }) {
             <button type="button" className="secondary-button compact" onClick={() => onChangeProfile(initialProfile)}>
               Annuler les changements
             </button>
-            <button type="button" className="action-button compact">
+            <button type="button" className="action-button compact" onClick={() => onSaveProfile?.(profileForm, avatarFile)}>
               Enregistrer
+            </button>
+            <button type="button" className="secondary-button compact" onClick={() => onSignOut?.()}>
+              Deconnexion
             </button>
           </div>
         </div>
@@ -5021,15 +5617,15 @@ function ProfileSection({ profileForm, onChangeProfile }) {
                 <input type="email" value={profileDraft.email} onChange={updateDraftField('email')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
-                <span className="profile-card-kicker">Téléphone</span>
+                <span className="profile-card-kicker">Telephone</span>
                 <input type="text" value={profileDraft.phone} onChange={updateDraftField('phone')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
-                <span className="profile-card-kicker">Rôle</span>
+                <span className="profile-card-kicker">Role</span>
                 <input type="text" value={profileDraft.role} onChange={updateDraftField('role')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
-                <span className="profile-card-kicker">Société</span>
+                <span className="profile-card-kicker">Societe</span>
                 <input type="text" value={profileDraft.company} onChange={updateDraftField('company')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
@@ -5037,11 +5633,11 @@ function ProfileSection({ profileForm, onChangeProfile }) {
                 <input type="text" value={profileDraft.city} onChange={updateDraftField('city')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
-                <span className="profile-card-kicker">Spécialité</span>
+                <span className="profile-card-kicker">Specialite</span>
                 <input type="text" value={profileDraft.specialty} onChange={updateDraftField('specialty')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
-                <span className="profile-card-kicker">Disponibilité</span>
+                <span className="profile-card-kicker">Disponibilite</span>
                 <input type="text" value={profileDraft.availability} onChange={updateDraftField('availability')} className="profile-card-input" />
               </label>
               <label className="profile-detail-card">
@@ -5078,17 +5674,34 @@ function ProfileSection({ profileForm, onChangeProfile }) {
 function AccessManagementModal({
   currentUserName,
   onClose,
-  onRemoveParticipant,
-  onUpdateParticipantRole,
+  onSave,
   participants,
 }) {
+  const [draftParticipants, setDraftParticipants] = useState(participants);
+
+  useEffect(() => {
+    setDraftParticipants(participants);
+  }, [participants]);
+
+  const updateDraftParticipant = (participantId, updater) => {
+    setDraftParticipants((current) =>
+      current.map((participant) => (participant.id !== participantId ?participant : updater(participant)))
+    );
+  };
+
+  const applyAllTabPermissions = (participantId, checked) => {
+    const nextPermissions = Object.fromEntries(permissionOptions.map((permission) => [permission.key, checked]));
+    updateDraftParticipant(participantId, (participant) => ({ ...participant, permissions: nextPermissions }));
+  };
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card light-modal detail-modal access-modal">
         <div className="panel-heading compact">
           <div>
-            <p className="eyebrow">Accès</p>
-            <h3>Gérer les intervenants</h3>
+            <p className="eyebrow">Acces</p>
+            <h3>Gerer les intervenants</h3>
+            <p className="topbar-subcopy">Role d'abord, puis onglets visibles pour chaque intervenant.</p>
           </div>
           <button type="button" className="secondary-button compact" onClick={onClose}>
             Fermer
@@ -5097,49 +5710,257 @@ function AccessManagementModal({
 
         <div className="access-summary">
           {roleOptions.map((role) => (
-            <div key={role} className="summary-row">
+            <article key={role} className="access-summary-card">
               <span>{role}</span>
               <strong>{participants.filter((participant) => getNormalizedRole(participant.role) === role).length}</strong>
-            </div>
+            </article>
           ))}
         </div>
 
         <div className="access-list">
-          {participants.map((participant) => {
+          {draftParticipants.map((participant) => {
             const normalizedRole = getNormalizedRole(participant.role);
             const isCurrentUser = participant.name === currentUserName;
+            const effectivePermissions = mergePermissions(normalizedRole, participant.permissions);
             return (
-              <article key={participant.id} className="list-row-button access-row">
-                <div className="list-row-main">
-                  <strong>{participant.name}</strong>
-                  <small>{participant.company}</small>
+              <article key={participant.id} className="access-row-card">
+                <div className="access-row-header">
+                  <div className="access-person">
+                    <div className="access-avatar">{participant.name.slice(0, 2).toUpperCase()}</div>
+                    <div className="list-row-main">
+                      <strong>{participant.name}</strong>
+                      <small>{participant.company}</small>
+                    </div>
+                  </div>
+                  <div className="access-controls">
+                    <span className="pill">{participant.status}</span>
+                    {isCurrentUser ?<span className="pill pill-electric">Vous</span> : null}
+                  </div>
                 </div>
-                <div className="access-controls">
-                  <span className="pill">{participant.status}</span>
-                  <select
-                    className="module-select access-select"
-                    disabled={isCurrentUser}
-                    value={normalizedRole}
-                    onChange={(event) => onUpdateParticipantRole(participant.id, event.target.value)}
-                  >
-                    {roleOptions.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="icon-button danger"
-                    disabled={isCurrentUser}
-                    onClick={() => onRemoveParticipant(participant.id)}
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
+
+                <div className="access-row-body">
+                  <div className="access-role-panel">
+                    <label className="field">
+                      <span>Role</span>
+                      <select
+                        className="module-select access-select"
+                        disabled={isCurrentUser}
+                        value={normalizedRole}
+                        onChange={(event) =>
+                          updateDraftParticipant(participant.id, (current) => ({ ...current, role: event.target.value }))
+                        }
+                      >
+                        {roleOptions.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="icon-button danger"
+                      disabled={isCurrentUser}
+                      onClick={() =>
+                        setDraftParticipants((current) =>
+                          current.filter((item) => item.id !== participant.id || item.name === currentUserName)
+                        )
+                      }
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+
+                  <div className="access-permissions-panel">
+                    <div className="access-permissions-header">
+                      <span>Onglets visibles</span>
+                      <strong>{permissionOptions.filter((permission) => effectivePermissions[permission.key]).length}/{permissionOptions.length}</strong>
+                    </div>
+                    <div className="access-bulk-actions">
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        disabled={isCurrentUser}
+                        onClick={() => applyAllTabPermissions(participant.id, true)}
+                      >
+                        Tout selectionner
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        disabled={isCurrentUser}
+                        onClick={() => applyAllTabPermissions(participant.id, false)}
+                      >
+                        Tout deselectionner
+                      </button>
+                    </div>
+                    <div className="access-permissions-grid">
+                      {permissionOptions.map((permission) => (
+                        <label key={permission.key} className="access-permission-chip">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(effectivePermissions[permission.key])}
+                            disabled={isCurrentUser}
+                            onChange={(event) =>
+                              updateDraftParticipant(participant.id, (current) => ({
+                                ...current,
+                                permissions: { ...(current.permissions ?? {}), [permission.key]: event.target.checked },
+                              }))
+                            }
+                          />
+                          <span>{permission.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </article>
             );
           })}
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Annuler
+          </button>
+          <button type="button" className="action-button" onClick={() => onSave?.(draftParticipants)}>
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectInfoModal({ onClose, project }) {
+  const totalDocuments = (project.documents?.length ?? 0) + (project.adminDocs?.length ?? 0);
+  const activeTasks = (project.tasks ?? []).filter((task) => !task.archived && !task.completed).length;
+  const completedTasks = (project.tasks ?? []).filter((task) => task.completed && !task.archived).length;
+  const archivedTasks = (project.tasks ?? []).filter((task) => task.archived).length;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card light-modal detail-modal project-info-modal">
+        <div className="panel-heading compact">
+          <div>
+            <p className="eyebrow">Chantier</p>
+            <h3>{project.name}</h3>
+            <p className="topbar-subcopy">Recapitulatif complet du chantier.</p>
+          </div>
+          <button type="button" className="secondary-button compact" onClick={onClose}>
+            Fermer
+          </button>
+        </div>
+
+        <div className="project-info-grid">
+          <div className="summary-card">
+            <div className="summary-row"><span>Client</span><strong>{project.client || '-'}</strong></div>
+            <div className="summary-row"><span>Adresse / site</span><strong>{project.site || '-'}</strong></div>
+            <div className="summary-row"><span>Budget</span><strong>{project.budget || '-'}</strong></div>
+            <div className="summary-row"><span>Periode</span><strong>{project.period || '-'}</strong></div>
+            <div className="summary-row"><span>Statut</span><strong>{project.status || '-'}</strong></div>
+            <div className="summary-row"><span>Progression</span><strong>{project.progress ?? 0}%</strong></div>
+          </div>
+
+          <div className="summary-card">
+            <div className="summary-row"><span>Intervenants</span><strong>{project.participants?.length ?? 0}</strong></div>
+            <div className="summary-row"><span>Sections</span><strong>{project.sections?.length ?? 0}</strong></div>
+            <div className="summary-row"><span>Taches actives</span><strong>{activeTasks}</strong></div>
+            <div className="summary-row"><span>Taches terminO "Oaes</span><strong>{completedTasks}</strong></div>
+            <div className="summary-row"><span>Taches archivO "Oaes</span><strong>{archivedTasks}</strong></div>
+            <div className="summary-row"><span>Documents</span><strong>{totalDocuments}</strong></div>
+            <div className="summary-row"><span>Plans</span><strong>{project.plans?.length ?? 0}</strong></div>
+            <div className="summary-row"><span>Conversations</span><strong>{project.conversations?.length ?? 0}</strong></div>
+          </div>
+        </div>
+
+        <div className="summary-card project-info-block">
+          <div className="summary-row">
+            <span>Intervenants</span>
+            <strong>{project.participants?.length ?? 0}</strong>
+          </div>
+          <div className="project-info-tags">
+            {(project.participants ?? []).map((participant) => (
+              <span key={participant.id} className="pill pill-electric">{participant.name}  -  {participant.role}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="summary-card project-info-block">
+          <div className="summary-row">
+            <span>Sections</span>
+            <strong>{project.sections?.length ?? 0}</strong>
+          </div>
+          <div className="project-info-tags">
+            {(project.sections ?? []).map((section) => (
+              <span key={section} className="pill">{section}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="summary-card project-info-block">
+          <div className="summary-row">
+            <span>Dernieres activites</span>
+            <strong>{project.timeline?.length ?? 0}</strong>
+          </div>
+          <div className="project-info-timeline">
+            {(project.timeline ?? []).slice(0, 8).map((item) => (
+              <div key={item.id} className="summary-row">
+                <span>{item.label}</span>
+                <strong>{item.date}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvitationCenterModal({ invitations, onClose, onRespond }) {
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card light-modal detail-modal invitation-center-modal">
+        <div className="panel-heading compact">
+          <div>
+            <p className="eyebrow">Invitations</p>
+            <h3>Mes invitations chantier</h3>
+          </div>
+          <button type="button" className="secondary-button compact" onClick={onClose}>
+            Fermer
+          </button>
+        </div>
+
+        <div className="invitation-list">
+          {invitations.length ?(
+            invitations.map((invitation) => (
+              <article key={invitation.id} className="list-row-button invitation-row invitation-row-compact">
+                <div className="list-row-main">
+                  <strong>{invitation.projectName}</strong>
+                  <small>{[invitation.client, invitation.site, invitation.role].filter(Boolean).join('  -  ')}</small>
+                </div>
+                <div className="access-controls">
+                  <span className="pill">{invitation.status}</span>
+                  {invitation.status === 'pending' ?(
+                    <>
+                      <button type="button" className="secondary-button compact" onClick={() => onRespond(invitation.id, 'refused')}>
+                        Refuser
+                      </button>
+                      <button type="button" className="action-button compact" onClick={() => onRespond(invitation.id, 'accepted')}>
+                        Accepter
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="summary-card">
+              <div className="summary-row">
+                <span>Aucune invitation</span>
+                <strong>0</strong>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -5148,7 +5969,7 @@ function AccessManagementModal({
 
 function MetricBox({ label, value, detail, icon, compact = false }) {
   return (
-    <article className={`metric-box light-metric ${compact ?'compact-metric-box' : ''}`}>
+    <article className={`metric-box light-metric ${compact ? 'compact-metric-box' : ''}`}>
       <div className="metric-topline">
         <span>{label}</span>
         <FontAwesomeIcon icon={icon} className="metric-icon" />

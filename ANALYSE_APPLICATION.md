@@ -1,26 +1,26 @@
 # Analyse Application Build In Peace
 
 Date: 2026-03-24
-Contexte: mémoire de travail créée pendant une analyse complète du dépôt pour garder une trace persistante de l’architecture, des flux et des points sensibles.
+Contexte: memoire de travail creee pendant une analyse complete du depot pour garder une trace persistante de l'architecture, des flux et des points sensibles.
 
-## 1. Résumé rapide
+## 1. Resume rapide
 
-- Application React 18 créée avec Create React App.
+- Application React 18 creee avec Create React App.
 - UI principalement en Tailwind utilitaire + quelques styles CSS.
-- Backend entièrement centré sur Firebase:
+- Backend entierement centre sur Firebase:
   - Auth Google
   - Firestore
   - Storage
   - Analytics
   - Cloud Messaging
-- Domaine métier: gestion de chantiers, documents, tâches, participants, messagerie, plans annotables, profil et réseau d’amis.
+- Domaine metier: gestion de chantiers, documents, taches, participants, messagerie, plans annotables, profil et reseau d'amis.
 
-## 2. Entrées principales
+## 2. Entrees principales
 
 - `src/index.js`: bootstrap React classique.
 - `src/App.js`: routage principal.
 - `src/firebase.js`: initialisation Firebase, Auth, Firestore, Storage, Analytics, Messaging.
-- `firebase.json`: hébergement SPA via rewrite global vers `index.html`.
+- `firebase.json`: hebergement SPA via rewrite global vers `index.html`.
 
 ## 3. Routage actuel
 
@@ -38,45 +38,45 @@ Contexte: mémoire de travail créée pendant une analyse complète du dépôt p
   - `/dashboard/chantiers/:chantierId/documents` -> `Documents`
 
 Observation importante:
-- Le vrai flux chantier passe surtout par `Dashboard` -> `Chantier`, qui gère son propre état local au lieu d’utiliser pleinement les sous-routes React Router.
-- `Conversations.js` est un placeholder et semble dépassé par `Acteurs.js`.
+- Le vrai flux chantier passe surtout par `Dashboard` -> `Chantier`, qui gere son propre etat local au lieu d'utiliser pleinement les sous-routes React Router.
+- `Conversations.js` est un placeholder et semble depasse par `Acteurs.js`.
 
 ## 4. Parcours utilisateur
 
 ### Accueil / Auth
 
-- `Home` affiche une landing très simple avec `Navbar` et `BuildInPeace`.
+- `Home` affiche une landing tres simple avec `Navbar` et `BuildInPeace`.
 - `Login` fait un `signInWithPopup` Google.
-- Après connexion:
-  - création du document utilisateur si absent dans `Utilisateurs/{uid}`
+- Apres connexion:
+  - creation du document utilisateur si absent dans `Utilisateurs/{uid}`
   - redirection vers `/dashboard/chantiers`
 
 ### Dashboard
 
 - `Dashboard` contient la navigation principale.
-- Si l’URL contient `/dashboard/chantiers`, il injecte le module `Chantier`.
-- La sidebar est responsive, mais une partie de l’UX est codée en dur et non branchée.
+- Si l'URL contient `/dashboard/chantiers`, il injecte le module `Chantier`.
+- La sidebar est responsive, mais une partie de l'UX est codee en dur et non branchee.
 
 ### Gestion des chantiers
 
-- `Chantier.js` est le centre métier de l’application.
-- Capacités:
-  - lister les chantiers visibles pour l’utilisateur connecté
-  - créer un chantier
-  - sélectionner un chantier
+- `Chantier.js` est le centre metier de l'application.
+- Capacites:
+  - lister les chantiers visibles pour l'utilisateur connecte
+  - creer un chantier
+  - selectionner un chantier
   - inviter des intervenants
   - modifier/supprimer des participants
-  - filtrer les menus selon le rôle
-  - afficher les modules métier du chantier:
+  - filtrer les menus selon le role
+  - afficher les modules metier du chantier:
     - Administratif
     - Documents
     - Plan
-    - Tâches
+    - Taches
     - Acteurs
 
 ### Administratif chantier
 
-Modules séparés:
+Modules separes:
 - `Offres.js`
 - `Factures.js`
 - `Contrat.js`
@@ -85,71 +85,71 @@ Modules séparés:
 
 Pattern commun:
 - upload de PDF ou fichier sur Firebase Storage
-- métadonnées sauvegardées dans une sous-collection Firestore du chantier
+- metadonnees sauvegardees dans une sous-collection Firestore du chantier
 - liste, ajout, suppression
 
 ### Documents chantier
 
-- `Documents.js` gère une arborescence de catégories/sous-catégories codée en dur.
-- Les fichiers sont stockés dans Storage.
-- Les métadonnées sont stockées dans une structure Firestore profondément imbriquée sous `chantiers/{chantierId}/categories/...`.
+- `Documents.js` gere une arborescence de categories/sous-categories codee en dur.
+- Les fichiers sont stockes dans Storage.
+- Les metadonnees sont stockees dans une structure Firestore profondement imbriquee sous `chantiers/{chantierId}/categories/...`.
 
 ### Plan annotable
 
 - `Plan.js` permet:
-  - upload d’images/plan dans Storage
-  - sélection d’un plan
+  - upload d'images/plan dans Storage
+  - selection d'un plan
   - annotation avec Konva
-  - dessin libre, rectangle, cercle, flèche, texte
-  - sauvegarde de versions uniquement en mémoire React
+  - dessin libre, rectangle, cercle, fleche, texte
+  - sauvegarde de versions uniquement en memoire React
 
-Point clé:
-- les versions annotées ne sont pas persistées en Firestore ou Storage, seulement dans le state local de la session.
+Point cle:
+- les versions annotees ne sont pas persistees en Firestore ou Storage, seulement dans le state local de la session.
 
-### Tâches chantier
+### Taches chantier
 
-- `Todo.js` gère les tâches d’un chantier:
+- `Todo.js` gere les taches d'un chantier:
   - sections
-  - création multi-étapes
+  - creation multi-etapes
   - responsables
-  - tâches terminées / archivées
-  - détails d’une tâche
+  - taches terminees / archivees
+  - details d'une tache
 
-### Tâches personnelles
+### Taches personnelles
 
-- `ToDoList.js` gère:
-  - tâches personnelles utilisateur
-  - tâches assignées provenant des chantiers
+- `ToDoList.js` gere:
+  - taches personnelles utilisateur
+  - taches assignees provenant des chantiers
   - commentaires
 
-### Amis et messagerie privée
+### Amis et messagerie privee
 
-- `Amis.js` gère:
+- `Amis.js` gere:
   - invitations entre utilisateurs
   - acceptation/refus
-  - création de conversation privée
+  - creation de conversation privee
   - chat texte/fichier/audio/image
-  - visualisation du profil d’un ami
+  - visualisation du profil d'un ami
 
 ### Acteurs et messagerie chantier
 
-- `Acteurs.js` gère:
-  - récupération des participants du chantier
-  - conversation générale
-  - conversations privées entre participants
+- `Acteurs.js` gere:
+  - recuperation des participants du chantier
+  - conversation generale
+  - conversations privees entre participants
   - fichiers, images, audio
-  - consultation du profil d’un membre
+  - consultation du profil d'un membre
 
 ### Profil
 
-- `Profil.js` stocke un profil étendu sous:
+- `Profil.js` stocke un profil etendu sous:
   - `Utilisateurs/{uid}/Profiles/profileData`
 
 ### File manager utilisateur
 
-- `FileManager.js` gère des répertoires personnels utilisateur et des documents associés.
+- `FileManager.js` gere des repertoires personnels utilisateur et des documents associes.
 
-## 5. Schéma Firestore observé
+## 5. Schema Firestore observe
 
 ### Utilisateurs
 
@@ -157,7 +157,7 @@ Point clé:
   - `displayName`
   - `email`
   - `uid`
-  - éventuellement `sections`
+  - eventuellement `sections`
 - `Utilisateurs/{uid}/Profiles/profileData`
 - `Utilisateurs/{uid}/amis/{friendUid}`
 - `Utilisateurs/{uid}/tasks/{taskId}`
@@ -187,12 +187,12 @@ Point clé:
 - `chantiers/{chantierId}/Assurances/{docId}`
 - `chantiers/{chantierId}/categories/{category}/subCategories/{subCategory}/documents/{docId}`
 
-### Conversations privées globales
+### Conversations privees globales
 
 - `conversations/{conversationId}`
 - `conversations/{conversationId}/messages/{messageId}`
 
-## 6. Schéma Storage observé
+## 6. Schema Storage observe
 
 - `documents/{uid}/{fileName}`
 - `plans/{chantierId}/{fileName}`
@@ -203,65 +203,65 @@ Point clé:
   - `.../contrat/...`
   - `.../avancement/...`
   - `.../assurances/...`
-  - documents chantier imbriqués
+  - documents chantier imbriques
 
 ## 7. Forces actuelles
 
-- Le périmètre fonctionnel est déjà large.
-- Firebase est utilisé de manière cohérente sur la majorité des flux.
+- Le perimetre fonctionnel est deja large.
+- Firebase est utilise de maniere coherente sur la majorite des flux.
 - Les vues principales sont responsives.
-- La logique métier chantier est déjà bien découpée par modules.
+- La logique metier chantier est deja bien decoupee par modules.
 - Le build production passe actuellement.
 
-## 8. Risques et incohérences majeurs
+## 8. Risques et incoherences majeurs
 
 ### Architecture
 
-- `Chantier.js` concentre énormément de responsabilités.
-- Une partie du routage existe mais le vrai pilotage se fait par état local.
-- Plusieurs composants sont présents mais peu ou pas intégrés:
+- `Chantier.js` concentre enormement de responsabilites.
+- Une partie du routage existe mais le vrai pilotage se fait par etat local.
+- Plusieurs composants sont presents mais peu ou pas integres:
   - `ChatSubject`
   - `Subjects`
   - `ChantierSubMenu`
   - `Auteurs.js` vide
   - `Conversations.js` placeholder
 
-### Données
+### Donnees
 
-- Le modèle Firestore est hétérogène:
+- Le modele Firestore est heterogene:
   - participants parfois dans un array du document chantier
   - parfois dans une sous-collection `participants`
-- `inviteIntervenant` écrit à la fois via `addDoc` dans la sous-collection et `updateDoc` sur l’array `participants`, avec risque de doublons et divergence.
-- Les conversations utilisent `where('participants', '==', participantIds)`, ce qui dépend d’un ordre strict de tableau et reste fragile.
-- `ToDoList.js` accumule potentiellement des listeners imbriqués sur tous les chantiers sans nettoyage fin par chantier.
+- `inviteIntervenant` ecrit a la fois via `addDoc` dans la sous-collection et `updateDoc` sur l'array `participants`, avec risque de doublons et divergence.
+- Les conversations utilisent `where('participants', '==', participantIds)`, ce qui depend d'un ordre strict de tableau et reste fragile.
+- `ToDoList.js` accumule potentiellement des listeners imbriques sur tous les chantiers sans nettoyage fin par chantier.
 
 ### UX / logique
 
-- `Plan.js`: les versions annotées sont perdues au rechargement.
-- `Todo.js`: la photo d’une tâche est gardée en `URL.createObjectURL`, pas persistée dans Storage.
-- `Documents.js`: catégories codées en dur, donc peu extensible.
-- `Dashboard.js`: notifications déclarées mais non utilisées.
-- `Conversations.js` n’apporte pas de vraie valeur fonctionnelle.
+- `Plan.js`: les versions annotees sont perdues au rechargement.
+- `Todo.js`: la photo d'une tache est gardee en `URL.createObjectURL`, pas persistee dans Storage.
+- `Documents.js`: categories codees en dur, donc peu extensible.
+- `Dashboard.js`: notifications declarees mais non utilisees.
+- `Conversations.js` n'apporte pas de vraie valeur fonctionnelle.
 
-### Qualité de code
+### Qualite de code
 
-- Beaucoup de `console.log`, code mort et imports inutilisés.
-- Plusieurs `useEffect` ont des dépendances manquantes.
-- Encodage texte abîmé à plusieurs endroits (`Ã©`, `TÃ¢ches`, etc.), signe probable de fichiers sauvés avec un mauvais encodage.
+- Beaucoup de `console.log`, code mort et imports inutilises.
+- Plusieurs `useEffect` ont des dependances manquantes.
+- Encodage texte abime a plusieurs endroits (`A`, `TAches`, etc.), signe probable de fichiers sauves avec un mauvais encodage.
 
-### Dépendances / socle technique
+### Dependances / socle technique
 
-- Le projet repose sur Create React App, qui est maintenant obsolète.
-- Le build remonte un avertissement Babel lié à CRA non maintenu.
+- Le projet repose sur Create React App, qui est maintenant obsolete.
+- Le build remonte un avertissement Babel lie a CRA non maintenu.
 - `public/firebase-messaging-sw.js` utilise `process.env`, ce qui ne fonctionne pas comme dans le bundle React standard pour un fichier public servi tel quel.
-- `.env.local` est présent dans le workspace; vérifier s’il est ignoré et non committé avant partage.
+- `.env.local` est present dans le workspace; verifier s'il est ignore et non committe avant partage.
 
-## 9. Vérification effectuée
+## 9. Verification effectuee
 
-Commande exécutée:
+Commande executee:
 - `npm.cmd run build`
 
-Résultat:
+Resultat:
 - build production OK
 - compilation avec warnings ESLint seulement
 
@@ -274,73 +274,73 @@ Constats build:
 
 ### Objectif
 
-Remplacer Firebase par Supabase tout en conservant les exemples existants, c’est-à-dire:
+Remplacer Firebase par Supabase tout en conservant les exemples existants, c'est-a-dire:
 - conserver les parcours fonctionnels actuels
-- conserver la logique métier visible dans l’interface
-- conserver autant que possible la structure de données utile
-- garder une mémoire claire de l’avancement dans ce fichier
+- conserver la logique metier visible dans l'interface
+- conserver autant que possible la structure de donnees utile
+- garder une memoire claire de l'avancement dans ce fichier
 
-### Faisabilité
+### Faisabilite
 
-Oui, la migration est faisable, mais ce n’est pas un simple remplacement de SDK.
+Oui, la migration est faisable, mais ce n'est pas un simple remplacement de SDK.
 
-Firebase utilisé dans le projet:
+Firebase utilise dans le projet:
 - Auth Google
-- Firestore temps réel
+- Firestore temps reel
 - Storage
 - Analytics
 - Cloud Messaging
 
-Équivalents Supabase:
+Equivalents Supabase:
 - Auth Google -> Supabase Auth OK
 - Firestore -> Postgres + Realtime + RPC/Views
 - Storage -> Supabase Storage OK
-- Analytics -> pas d’équivalent direct natif
-- Cloud Messaging -> hors périmètre Supabase natif, à repenser
+- Analytics -> pas d'equivalent direct natif
+- Cloud Messaging -> hors perimetre Supabase natif, a repenser
 
 Conclusion:
-- la migration du cœur applicatif est faisable
-- `Analytics` et surtout `Cloud Messaging` devront être remplacés ou supprimés
-- le modèle de données devra être redesigné, car Firestore et Postgres ne se mappent pas en 1:1
+- la migration du coeur applicatif est faisable
+- `Analytics` et surtout `Cloud Messaging` devront etre remplaces ou supprimes
+- le modele de donnees devra etre redesigne, car Firestore et Postgres ne se mappent pas en 1:1
 
-### Ce qu’il faut préserver
+### Ce qu'il faut preserver
 
-- Les écrans et usages:
+- Les ecrans et usages:
   - login
   - chantiers
   - participants
-  - tâches
+  - taches
   - documents
   - offres/factures/contrats/avancement/assurances
   - amis
   - messagerie
   - profils
   - plans
-- Les exemples métier et jeux de cas présents dans le code
-- Les contenus déjà présents dans Firebase si on fait une vraie migration de données
+- Les exemples metier et jeux de cas presents dans le code
+- Les contenus deja presents dans Firebase si on fait une vraie migration de donnees
 
 ### Contraintes fortes
 
-- Je n’ai actuellement ni projet Supabase configuré dans ce dépôt, ni URL/clé Supabase.
-- Je n’ai pas de script d’export Firebase existant dans le repo.
-- La migration réelle des données exigera:
-  - accès au projet Firebase source
-  - accès au projet Supabase cible
-  - schéma SQL cible validé
+- Je n'ai actuellement ni projet Supabase configure dans ce depot, ni URL/cle Supabase.
+- Je n'ai pas de script d'export Firebase existant dans le repo.
+- La migration reelle des donnees exigera:
+  - acces au projet Firebase source
+  - acces au projet Supabase cible
+  - schema SQL cible valide
 
-### Stratégie recommandée
+### Strategie recommandee
 
-1. Concevoir le schéma Supabase cible
-2. Introduire un client Supabase côté front
+1. Concevoir le schema Supabase cible
+2. Introduire un client Supabase cote front
 3. Remplacer Auth
 4. Remplacer Storage
-5. Remplacer lecture/écriture Firestore par tables SQL
-6. Remplacer le temps réel Firestore par Supabase Realtime là où nécessaire
-7. Gérer séparément notifications et analytics
-8. Migrer les données existantes
+5. Remplacer lecture/ecriture Firestore par tables SQL
+6. Remplacer le temps reel Firestore par Supabase Realtime la ou necessaire
+7. Gerer separement notifications et analytics
+8. Migrer les donnees existantes
 9. Supprimer Firebase du code
 
-### Schéma Supabase cible envisagé
+### Schema Supabase cible envisage
 
 Tables probables:
 - `users`
@@ -386,53 +386,53 @@ Buckets probables:
 ### Points de refonte obligatoires
 
 - Les sous-collections Firestore doivent devenir des tables relationnelles.
-- Les tableaux `participants` dans les documents chantier doivent être remplacés par de vraies relations.
-- Les requêtes `where('participants', '==', participantIds)` doivent être remplacées par une modélisation relationnelle correcte.
-- Les listeners `onSnapshot` doivent être remplacés par:
-  - requêtes SQL standard
-  - subscriptions Realtime ciblées seulement là où c’est utile
+- Les tableaux `participants` dans les documents chantier doivent etre remplaces par de vraies relations.
+- Les requetes `where('participants', '==', participantIds)` doivent etre remplacees par une modelisation relationnelle correcte.
+- Les listeners `onSnapshot` doivent etre remplaces par:
+  - requetes SQL standard
+  - subscriptions Realtime ciblees seulement la ou c'est utile
 
-## 11. État d’avancement migration
+## 11. Etat d'avancement migration
 
 ### Fait
 
-- Analyse complète du dépôt
+- Analyse complete du depot
 - Inventaire des usages Firebase
-- Identification des modules impactés
-- Vérification que Firebase est fortement couplé à presque toutes les pages métier
-- Mise à jour de ce fichier pour suivre spécifiquement la migration Supabase
+- Identification des modules impactes
+- Verification que Firebase est fortement couple a presque toutes les pages metier
+- Mise a jour de ce fichier pour suivre specifiquement la migration Supabase
 - Installation du SDK `@supabase/supabase-js`
-- Création d’un client front initial dans `src/supabase.js`
-- Ajout d’un fichier `.env.example` pour documenter les variables Firebase et Supabase
-- Ajout d’un draft de schéma SQL initial dans `supabase/001_initial_schema.sql`
+- Creation d'un client front initial dans `src/supabase.js`
+- Ajout d'un fichier `.env.example` pour documenter les variables Firebase et Supabase
+- Ajout d'un draft de schema SQL initial dans `supabase/001_initial_schema.sql`
 - Ajout des variables Supabase dans `.env.local` pour le travail local
-- Vérification build après préparation Supabase: OK
-- Migration initiale de l’auth vers Supabase
-- Création d’une couche de compatibilité `src/auth.js`
-- Création de `src/firebaseApp.js` pour factoriser l’app Firebase sans boucle d’import
-- `Login.js` basculé vers `supabase.auth.signInWithOAuth({ provider: 'google' })`
-- Synchronisation de base de l’utilisateur authentifié vers:
+- Verification build apres preparation Supabase: OK
+- Migration initiale de l'auth vers Supabase
+- Creation d'une couche de compatibilite `src/auth.js`
+- Creation de `src/firebaseApp.js` pour factoriser l'app Firebase sans boucle d'import
+- `Login.js` bascule vers `supabase.auth.signInWithOAuth({ provider: 'google' })`
+- Synchronisation de base de l'utilisateur authentifie vers:
   - table Supabase `users`
   - table Supabase `profiles`
   - collection Firebase `Utilisateurs`
-- `Chantier.js` et `Todo.js` adaptés pour ne plus dépendre directement de Firebase Auth
+- `Chantier.js` et `Todo.js` adaptes pour ne plus dependre directement de Firebase Auth
 
 ### En cours
 
 - Cadrage du plan de migration
-- Préparation du mapping conceptuel Firebase -> Supabase
-- Préparation du socle technique côté front
+- Preparation du mapping conceptuel Firebase -> Supabase
+- Preparation du socle technique cote front
 - Stabilisation de la transition auth pendant que Firestore/Storage restent actifs
 
 ### Pas encore fait
 
-- Définition du schéma SQL exact
-- Scripts de migration de données
+- Definition du schema SQL exact
+- Scripts de migration de donnees
 - Remplacement du code front Firebase
 - Suppression de Firebase
-- Migration de tous les écrans encore couplés implicitement aux anciens UID Firebase
+- Migration de tous les ecrans encore couples implicitement aux anciens UID Firebase
 
-## 12. Fichiers les plus impactés par la migration
+## 12. Fichiers les plus impactes par la migration
 
 - `src/firebase.js`
 - `src/pages/Login.js`
@@ -454,39 +454,39 @@ Buckets probables:
 - `public/firebase-messaging-sw.js`
 - `package.json`
 
-## 13. Décisions à prendre avant migration réelle
+## 13. Decisions a prendre avant migration reelle
 
-- Est-ce qu’on garde Google login uniquement, ou ajoute email/mot de passe aussi?
-- Est-ce qu’on conserve les notifications push, ou on les retire temporairement?
-- Est-ce qu’on migre les données existantes Firebase, ou seulement le code et la structure?
-- Est-ce qu’on garde CRA pour l’instant, ou on combine avec une migration vers Vite?
+- Est-ce qu'on garde Google login uniquement, ou ajoute email/mot de passe aussi?
+- Est-ce qu'on conserve les notifications push, ou on les retire temporairement?
+- Est-ce qu'on migre les donnees existantes Firebase, ou seulement le code et la structure?
+- Est-ce qu'on garde CRA pour l'instant, ou on combine avec une migration vers Vite?
 
-## 14. Prochaine étape utile
+## 14. Prochaine etape utile
 
-La prochaine étape propre est:
-- valider puis appliquer le schéma SQL dans Supabase
-- connecter l’auth Supabase en premier
-- migrer ensuite `Profil`, `Chantier`, puis les modules documents/tâches/messages
-- garder Firebase en parallèle tant que chaque bloc n’a pas été basculé
+La prochaine etape propre est:
+- valider puis appliquer le schema SQL dans Supabase
+- connecter l'auth Supabase en premier
+- migrer ensuite `Profil`, `Chantier`, puis les modules documents/taches/messages
+- garder Firebase en parallele tant que chaque bloc n'a pas ete bascule
 
-## 15. État concret dans le dépôt
+## 15. Etat concret dans le depot
 
-Fichiers ajoutés ou préparés pour la migration:
+Fichiers ajoutes ou prepares pour la migration:
 - `src/supabase.js`
 - `.env.example`
 - `supabase/001_initial_schema.sql`
 
-Configuration locale préparée:
-- variables Supabase ajoutées à `.env.local`
-- compatibilité prévue avec noms `REACT_APP_*` et `NEXT_PUBLIC_*`
+Configuration locale preparee:
+- variables Supabase ajoutees a `.env.local`
+- compatibilite prevue avec noms `REACT_APP_*` et `NEXT_PUBLIC_*`
 
-Point de sécurité:
-- l’URL PostgreSQL complète et le mot de passe base de données ne doivent pas être utilisés côté navigateur
-- pour le front, seule l’URL Supabase et la clé publique sont nécessaires
+Point de securite:
+- l'URL PostgreSQL complete et le mot de passe base de donnees ne doivent pas etre utilises cote navigateur
+- pour le front, seule l'URL Supabase et la cle publique sont necessaires
 
-## 16. État Auth Supabase
+## 16. Etat Auth Supabase
 
-### Codé
+### Code
 
 - `src/auth.js` expose:
   - `auth.currentUser`
@@ -495,20 +495,20 @@ Point de sécurité:
   - `signInWithGoogle()`
   - `signOut()`
   - `syncAuthenticatedUser()`
-- `src/pages/Login.js` utilise désormais Supabase Auth Google
-- L’application compile toujours après ce basculement
+- `src/pages/Login.js` utilise desormais Supabase Auth Google
+- L'application compile toujours apres ce basculement
 
-### Important à configurer dans Supabase Dashboard
+### Important a configurer dans Supabase Dashboard
 
 - Activer le provider Google dans `Authentication > Providers`
 - Configurer le `Google Client ID` et le `Google Client Secret`
-- Ajouter l’URL de site
-- Ajouter l’URL de redirection de callback, au minimum:
+- Ajouter l'URL de site
+- Ajouter l'URL de redirection de callback, au minimum:
   - `http://localhost:3000/login`
-  - et plus tard ton domaine prod si nécessaire
+  - et plus tard ton domaine prod si necessaire
 
 ### Risque restant
 
-- Les anciens documents Firestore liés aux UID Firebase historiques ne correspondront pas automatiquement aux nouveaux UID Supabase
-- Les modules basés sur l’email continueront souvent à fonctionner
-- Les modules liés strictement à `uid` pourront nécessiter une migration de données dédiée
+- Les anciens documents Firestore lies aux UID Firebase historiques ne correspondront pas automatiquement aux nouveaux UID Supabase
+- Les modules bases sur l'email continueront souvent a fonctionner
+- Les modules lies strictement a `uid` pourront necessiter une migration de donnees dediee

@@ -22,33 +22,33 @@ import Acteurs from './Acteurs'
 import Plan from './Plan';
 
 
-// Définition des permissions pour chaque rôle
+// Definition des permissions pour chaque role
 const rolePermissions = {
   'Entrepreneur': {
-    mainMenus: ['Administratif', 'Documents','Plan', 'Tâches', 'Acteurs'],
+    mainMenus: ['Administratif', 'Documents','Plan', 'Taches', 'Acteurs'],
     adminSubMenus: ['Offres', 'Factures', 'Contrat', 'Avancement', 'Assurance'],
   },
   'Gestionnaire': {
-    mainMenus: ['Administratif', 'Documents' ,'Plan', 'Tâches', 'Acteurs'],
+    mainMenus: ['Administratif', 'Documents' ,'Plan', 'Taches', 'Acteurs'],
     adminSubMenus: ['Offres', 'Factures', 'Contrat', 'Avancement', 'Assurance'],
   },
   'Client': {
     mainMenus: ['Administratif', 'Documents',,'Plan', 'Acteurs'],
-    adminSubMenus: ['Offres', 'Factures', 'Contrat', 'Avancement', 'Assurance'], // Pas d'accès aux sous-menus d'Administratif
+    adminSubMenus: ['Offres', 'Factures', 'Contrat', 'Avancement', 'Assurance'], // Pas d'acces aux sous-menus d'Administratif
   },
   'Architecte': {
-    mainMenus: ['Administratif','Documents','Plan',  'Tâches', 'Acteurs'],
-    adminSubMenus: ['Offres', 'Factures', 'Contrat', 'Avancement', 'Assurance'], // Pas d'accès aux sous-menus d'Administratif
+    mainMenus: ['Administratif','Documents','Plan',  'Taches', 'Acteurs'],
+    adminSubMenus: ['Offres', 'Factures', 'Contrat', 'Avancement', 'Assurance'], // Pas d'acces aux sous-menus d'Administratif
   },
   'Ouvrier': {
-    mainMenus: ['Documents', 'Tâches', 'Acteurs','Plan'],
-    adminSubMenus: [], // Pas d'accès aux sous-menus d'Administratif
+    mainMenus: ['Documents', 'Taches', 'Acteurs','Plan'],
+    adminSubMenus: [], // Pas d'acces aux sous-menus d'Administratif
   },
   'Sous-Traitants': {
-    mainMenus: ['Documents', 'Tâches', 'Acteurs','Plan'],
-    adminSubMenus: [], // Pas d'accès aux sous-menus d'Administratif
+    mainMenus: ['Documents', 'Taches', 'Acteurs','Plan'],
+    adminSubMenus: [], // Pas d'acces aux sous-menus d'Administratif
   },
-  // Ajoutez d'autres rôles si nécessaire
+  // Ajoutez d'autres roles si necessaire
 };
 
 
@@ -75,8 +75,8 @@ const Chantier = () => {
   
   const [intervenants, setIntervenants] = useState([]);
   const [allowedSubMenus, setAllowedSubMenus] = useState([]); 
-  const [allowedAdminSubMenus, setAllowedAdminSubMenus] = useState([]); // Sous-menus autorisés pour 'Administratif'
-// Sous-menus autorisés
+  const [allowedAdminSubMenus, setAllowedAdminSubMenus] = useState([]); // Sous-menus autorises pour 'Administratif'
+// Sous-menus autorises
 
 
 useEffect(() => {
@@ -85,11 +85,11 @@ useEffect(() => {
 
     if (currentUser && selectedChantierId) {
       try {
-        // Accéder à la sous-collection "participants" pour l'ID du chantier actuel
+        // Acceder a la sous-collection "participants" pour l'ID du chantier actuel
         const participantsCollectionRef = collection(db, `chantiers/${selectedChantierId}/participants`);
         const participantsSnapshot = await getDocs(participantsCollectionRef);
 
-        // Rechercher le rôle de l'utilisateur connecté dans les participants
+        // Rechercher le role de l'utilisateur connecte dans les participants
         let roleUtilisateur = '';
         participantsSnapshot.forEach((doc) => {
           const participantData = doc.data();
@@ -99,15 +99,15 @@ useEffect(() => {
         });
 
         if (roleUtilisateur) {
-          console.log('Rôle utilisateur récupéré:', roleUtilisateur); // Affiche le rôle récupéré
+          console.log('Role utilisateur recupere:', roleUtilisateur); // Affiche le role recupere
           setRole(roleUtilisateur);
         } else {
-          console.error('Rôle utilisateur non trouvé dans les participants');
-          setRole(''); // Aucun rôle attribué si non trouvé
+          console.error('Role utilisateur non trouve dans les participants');
+          setRole(''); // Aucun role attribue si non trouve
         }
       } catch (error) {
-        console.error('Erreur lors de la récupération du rôle utilisateur : ', error);
-        setRole(''); // Aucun rôle attribué en cas d'erreur
+        console.error('Erreur lors de la recuperation du role utilisateur : ', error);
+        setRole(''); // Aucun role attribue en cas d'erreur
       }
     }
   };
@@ -135,7 +135,7 @@ useEffect(() => {
   
           // Update the state with chantiers relevant to the current user
           setChantiers(fetchedChantiers);
-          console.log("Tous les chantiers récupérés :", fetchedChantiers);
+          console.log("Tous les chantiers recuperes :", fetchedChantiers);
         });
   
         // Clean up the listener when the component unmounts or the user changes
@@ -154,11 +154,11 @@ useEffect(() => {
     const { name, client, startDate, endDate } = newChantier;
     if (name.trim() && client.trim() && startDate && endDate) {
         try {
-            // Récupérer l'utilisateur connecté
+            // Recuperer l'utilisateur connecte
             const currentUser = auth.currentUser;
 
             if (currentUser) {
-                // Créer un nouveau chantier avec l'utilisateur actuel en tant qu'Entrepreneur
+                // Creer un nouveau chantier avec l'utilisateur actuel en tant qu'Entrepreneur
                 const chantierRef = await addDoc(collection(db, 'chantiers'), {
                     name,
                     client,
@@ -166,12 +166,12 @@ useEffect(() => {
                     startDate,
                     endDate,
                     participants: [
-                        { email: gestionnaire, role: 'Gestionnaire' }, // Gestionnaire ajouté
-                        { email: currentUser.email, role: 'Entrepreneur' } // Utilisateur connecté ajouté comme Entrepreneur
+                        { email: gestionnaire, role: 'Gestionnaire' }, // Gestionnaire ajoute
+                        { email: currentUser.email, role: 'Entrepreneur' } // Utilisateur connecte ajoute comme Entrepreneur
                     ],
                 });
 
-                // Ajouter les participants à la sous-collection "participants"
+                // Ajouter les participants a la sous-collection "participants"
                 const participantsCollectionRef = collection(chantierRef, 'participants');
 
                 // Ajouter le gestionnaire dans la sous-collection "participants"
@@ -180,7 +180,7 @@ useEffect(() => {
                     role: 'Gestionnaire'
                 });
 
-                // Ajouter l'utilisateur connecté en tant qu'Entrepreneur dans la sous-collection "participants"
+                // Ajouter l'utilisateur connecte en tant qu'Entrepreneur dans la sous-collection "participants"
                 await setDoc(doc(participantsCollectionRef, currentUser.email), {
                     email: currentUser.email,
                     role: 'Entrepreneur'
@@ -189,7 +189,7 @@ useEffect(() => {
                 setNewChantier({ name: '', client: '', startDate: '', endDate: '' });
                 setShowChantierModal(false);
             } else {
-                console.error("Aucun utilisateur connecté.");
+                console.error("Aucun utilisateur connecte.");
             }
         } catch (error) {
             console.error('Erreur lors de l\'ajout du chantier : ', error);
@@ -206,17 +206,17 @@ useEffect(() => {
             const currentUserUid = auth.currentUser?.uid;
             const chantierRef = doc(db, 'chantiers', selectedChantierId); // Centralized collection
 
-            // Afficher dans la console l'UID de l'utilisateur actuel et l'ID du chantier sélectionné
-            console.log(`UID de l'utilisateur actuel : ${currentUserUid}, ID du chantier sélectionné : ${selectedChantierId}`);
+            // Afficher dans la console l'UID de l'utilisateur actuel et l'ID du chantier selectionne
+            console.log(`UID de l'utilisateur actuel : ${currentUserUid}, ID du chantier selectionne : ${selectedChantierId}`);
 
-            // Ajouter l'intervenant à la sous-collection 'participants' du chantier actuel
+            // Ajouter l'intervenant a la sous-collection 'participants' du chantier actuel
             const participantDocRef = collection(chantierRef, 'participants');
             await addDoc(participantDocRef, {
                 email: invitedEmail,
                 role: role,
             });
 
-            // Récupérer les détails du chantier
+            // Recuperer les details du chantier
             const chantierSnapshot = await getDoc(chantierRef);
             if (!chantierSnapshot.exists()) {
                 throw new Error("Chantier introuvable");
@@ -224,7 +224,7 @@ useEffect(() => {
 
             const chantierData = chantierSnapshot.data();
 
-            // Rechercher l'utilisateur invité dans Firestore par son e-mail
+            // Rechercher l'utilisateur invite dans Firestore par son e-mail
             const usersCollection = collection(db, 'Utilisateurs');
             const userSnapshot = await getDocs(usersCollection);
             let invitedUserId = null;
@@ -232,34 +232,34 @@ useEffect(() => {
             userSnapshot.forEach(doc => {
                 const userData = doc.data();
                 if (userData.email === invitedEmail) {
-                    invitedUserId = doc.id; // ID de l'utilisateur invité
+                    invitedUserId = doc.id; // ID de l'utilisateur invite
                 }
             });
 
             if (!invitedUserId) {
-                throw new Error("Utilisateur invité introuvable");
+                throw new Error("Utilisateur invite introuvable");
             }
 
-            // Log de l'UID de l'utilisateur invité trouvé
-            console.log(`UID de l'utilisateur invité trouvé : ${invitedUserId}`);
+            // Log de l'UID de l'utilisateur invite trouve
+            console.log(`UID de l'utilisateur invite trouve : ${invitedUserId}`);
 
-            // Ajouter le chantier à la collection 'chantiers' de l'utilisateur invité en utilisant son UID
+            // Ajouter le chantier a la collection 'chantiers' de l'utilisateur invite en utilisant son UID
             // Directly update the centralized chantier with the new participant
 await updateDoc(chantierRef, {
   participants: arrayUnion({ email: invitedEmail, role }) // Add the new participant
 });
 
 
-            // Log de confirmation que le chantier a été ajouté
-            console.log(`Chantier ajouté avec succès pour l'utilisateur invité avec l'UID ${invitedUserId}`);
+            // Log de confirmation que le chantier a ete ajoute
+            console.log(`Chantier ajoute avec succes pour l'utilisateur invite avec l'UID ${invitedUserId}`);
 
-            // Mettre à jour l'état local
+            // Mettre a jour l'etat local
             setIntervenants([...intervenants, { email: invitedEmail, role }]);
             setInvitedEmail('');
-            setRole('Entrepreneur'); // Réinitialiser le rôle par défaut
+            setRole('Entrepreneur'); // Reinitialiser le role par defaut
             setShowInviteModal(false);
 
-            // Mettre à jour la liste des participants dans les détails du chantier actuel
+            // Mettre a jour la liste des participants dans les details du chantier actuel
             const updatedParticipants = chantierData.participants || [];
             updatedParticipants.push({ email: invitedEmail, role });
 
@@ -268,7 +268,7 @@ await updateDoc(chantierRef, {
 
         } catch (error) {
             console.error('Erreur lors de l\'invitation de l\'intervenant : ', error);
-            alert("Erreur lors de l'invitation de l'intervenant. Veuillez vérifier les informations saisies.");
+            alert("Erreur lors de l'invitation de l'intervenant. Veuillez verifier les informations saisies.");
         }
     } else {
         alert("Veuillez remplir tous les champs.");
@@ -278,7 +278,7 @@ await updateDoc(chantierRef, {
 
 
   const deleteChantier = async (chantierId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce chantier ?')) {
+    if (window.confirm('Etes-vous sur de vouloir supprimer ce chantier ?')) {
       try {
         await deleteDoc(doc(db, 'chantiers', chantierId)); // Centralized "chantiers" collection
         setChantiers(chantiers.filter((chantier) => chantier.id !== chantierId));
@@ -294,28 +294,28 @@ await updateDoc(chantierRef, {
       const currentUserUid = auth.currentUser?.uid;
       const chantierRef = doc(db, 'chantiers', chantierId); // Centralized collection
   
-      // Récupérer les détails du chantier
+      // Recuperer les details du chantier
       const chantierDoc = await getDoc(chantierRef);
       if (chantierDoc.exists()) {
         const chantierDetails = chantierDoc.data();
         setSelectedChantierDetails(chantierDetails);
   
-        // Récupérer tous les intervenants à partir de la sous-collection 'participants'
+        // Recuperer tous les intervenants a partir de la sous-collection 'participants'
         const participantsCollection = collection(chantierRef, 'participants');
         const participantsSnapshot = await getDocs(participantsCollection);
   
         const participantsList = participantsSnapshot.docs.map((doc) => doc.data());
   
-        // Ajouter le gestionnaire à la liste des intervenants
-      // Mise à jour de la liste des intervenants
+        // Ajouter le gestionnaire a la liste des intervenants
+      // Mise a jour de la liste des intervenants
 setIntervenants(participantsList);
 
   
-        // Mettre à jour l'état avec la liste des intervenants
+        // Mettre a jour l'etat avec la liste des intervenants
         setIntervenants(participantsList);
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des détails du chantier : ', error);
+      console.error('Erreur lors de la recuperation des details du chantier : ', error);
     }
   };
 
@@ -324,12 +324,12 @@ setIntervenants(participantsList);
       const permissions = rolePermissions[role];
       setAllowedSubMenus(permissions.mainMenus || []);
       setAllowedAdminSubMenus(permissions.adminSubMenus || []);
-      console.log(`Menus autorisés pour le rôle ${role}:`, permissions); // Log des permissions récupérées
+      console.log(`Menus autorises pour le role ${role}:`, permissions); // Log des permissions recuperees
     } else {
-      // Si aucun rôle n'est défini ou reconnu, pas d'accès aux menus
+      // Si aucun role n'est defini ou reconnu, pas d'acces aux menus
       setAllowedSubMenus([]);
       setAllowedAdminSubMenus([]);
-      console.error(`Rôle ${role} non reconnu ou permissions manquantes.`);
+      console.error(`Role ${role} non reconnu ou permissions manquantes.`);
     }
   }, [role]);
   
@@ -367,7 +367,7 @@ setIntervenants(participantsList);
         );
       case 'Conversations':
         return <Conversations />;
-      case 'Tâches':
+      case 'Taches':
         return <Todo chantierId={selectedChantierId} />;
       case 'Acteurs':
         return <Acteurs chantierId={selectedChantierId} />;
@@ -377,7 +377,7 @@ setIntervenants(participantsList);
           return <Plan chantierId={selectedChantierId} />;
         
       default:
-        return <p>Veuillez sélectionner une section à afficher.</p>;
+        return <p>Veuillez selectionner une section a afficher.</p>;
     }
   };
 
@@ -400,19 +400,19 @@ setIntervenants(participantsList);
           role: newRole
         });
   
-        // Mise à jour locale de l'état des intervenants après modification
+        // Mise a jour locale de l'etat des intervenants apres modification
         const updatedIntervenants = intervenants.map(intervenant =>
           intervenant.email === email ? { ...intervenant, role: newRole } : intervenant
         );
         setIntervenants(updatedIntervenants);
   
-        alert("Rôle modifié avec succès !");
+        alert("Role modifie avec succes !");
       } else {
-        alert("Erreur lors de la modification du rôle : Participant introuvable.");
+        alert("Erreur lors de la modification du role : Participant introuvable.");
       }
     } catch (error) {
-      console.error("Erreur lors de la modification du rôle : ", error);
-      alert("Erreur lors de la modification du rôle.");
+      console.error("Erreur lors de la modification du role : ", error);
+      alert("Erreur lors de la modification du role.");
     }
   };
 
@@ -433,11 +433,11 @@ setIntervenants(participantsList);
         const participantDocRef = doc(participantsCollectionRef, participantId);
         await deleteDoc(participantDocRef);
   
-        // Mise à jour locale de l'état des intervenants après suppression
+        // Mise a jour locale de l'etat des intervenants apres suppression
         const updatedIntervenants = intervenants.filter(intervenant => intervenant.email !== email);
         setIntervenants(updatedIntervenants);
   
-        alert("Participant supprimé avec succès !");
+        alert("Participant supprime avec succes !");
       } else {
         alert("Erreur lors de la suppression : Participant introuvable.");
       }
@@ -478,7 +478,7 @@ setIntervenants(participantsList);
                 </div>
                 <p className="text-xs"><strong>Client:</strong> {chantier.client}</p>
                 <p className="text-xs"><strong>Gestionnaire:</strong> {chantier.gestionnaire}</p>
-                <p className="text-xs"><strong>Début:</strong> {chantier.startDate}</p>
+                <p className="text-xs"><strong>Debut:</strong> {chantier.startDate}</p>
                 <p className="text-xs"><strong>Fin:</strong> {chantier.endDate}</p>
               </div>
             ))}
@@ -488,11 +488,11 @@ setIntervenants(participantsList);
             <table className="w-full table-auto border-collapse border border-gray-300 text-xs sm:text-sm">
               <thead>
                 <tr className="bg-gray-200 text-gray-600">
-                  <th className="border border-gray-300 p-1 sm:p-2">N°</th>
+                  <th className="border border-gray-300 p-1 sm:p-2">Ndeg</th>
                   <th className="border border-gray-300 p-1 sm:p-2">Titre</th>
                   <th className="border border-gray-300 p-1 sm:p-2">Client</th>
                   <th className="border border-gray-300 p-1 sm:p-2">Gestionnaire</th>
-                  <th className="border border-gray-300 p-1 sm:p-2">Début</th>
+                  <th className="border border-gray-300 p-1 sm:p-2">Debut</th>
                   <th className="border border-gray-300 p-1 sm:p-2">Fin</th>
                   <th className="border border-gray-300 p-1 sm:p-2">Actions</th>
                 </tr>
@@ -531,11 +531,11 @@ setIntervenants(participantsList);
             {["Gestionnaire", "Entrepreneur"].includes(role) && (
   <button onClick={() => setShowIntervenantsModal(true)} className="bg-green-600 text-white py-1 px-2 rounded hover:bg-green-500 text-xs flex items-center">
     <FontAwesomeIcon icon={faUsers} className="mr-1" />
-    Gérer accès
+    Gerer acces
   </button>
 )}
 
-{/* Afficher le bouton "Inviter" uniquement si le rôle est "Gestionnaire" ou "Entrepreneur" */}
+{/* Afficher le bouton "Inviter" uniquement si le role est "Gestionnaire" ou "Entrepreneur" */}
 {["Gestionnaire", "Entrepreneur"].includes(role) && (
   <button onClick={() => setShowInviteModal(true)} className="bg-blue-600 text-white py-1 px-2 rounded hover:bg-blue-500 text-xs flex items-center">
     <FontAwesomeIcon icon={faEnvelope} className="mr-1" />
@@ -591,7 +591,7 @@ setIntervenants(participantsList);
             <h3 className="text-lg font-bold mb-4 text-center">Inviter un Intervenant</h3>
             <input type="email" className="w-full p-2 border rounded mb-2" placeholder="Email de l'intervenant" value={invitedEmail} onChange={(e) => setInvitedEmail(e.target.value)} />
             <select className="w-full p-2 border rounded mb-2" value={role} onChange={(e) => setRole(e.target.value)}>
-  <option value="">Sélectionner un rôle</option>
+  <option value="">Selectionner un role</option>
   <option value="Entrepreneur">Entrepreneur</option>
   <option value="Architecte">Architecte</option>
   <option value="Ouvrier">Ouvrier</option>
@@ -615,7 +615,7 @@ setIntervenants(participantsList);
     <div className="bg-gray-100 p-2 rounded shadow-md">
       <p className="font-bold text-sm">Email: {intervenant.email}</p>
       <label className="block mt-2">
-        <span className="text-sm">Rôle:</span>
+        <span className="text-sm">Role:</span>
         <div className="flex items-center space-x-2">
           <select
             className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm p-2"

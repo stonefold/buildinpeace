@@ -21,16 +21,16 @@ const Amis = () => {
   const [friendProfile, setFriendProfile] = useState(null);
   const messagesEndRef = useRef(null); // Ref to handle scrolling to the last message
   const [activeTab, setActiveTab] = useState('chat'); // Onglet actif, "chat" ou "files"
-const [files, setFiles] = useState([]); // Fichiers envoyés
-const fileInputRef = useRef(null); // Référence pour l'input de fichier
-const cameraInputRef = useRef(null); // Référence pour capture d'image
-const videoRef = useRef(null); // Référence pour la caméra
+const [files, setFiles] = useState([]); // Fichiers envoyes
+const fileInputRef = useRef(null); // Reference pour l'input de fichier
+const cameraInputRef = useRef(null); // Reference pour capture d'image
+const videoRef = useRef(null); // Reference pour la camera
 const [isFullScreen, setIsFullScreen] = useState(false);
 const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 const [isRecording, setIsRecording] = useState(false);
 const [mediaRecorder, setMediaRecorder] = useState(null);
-const [selectedFile, setSelectedFile] = useState(null); // Fichier sélectionné pour l'aperçu
-const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation de l'audio
+const [selectedFile, setSelectedFile] = useState(null); // Fichier selectionne pour l'apercu
+const [audioURL, setAudioURL] = useState(null); // URL pour la previsualisation de l'audio
 
   const currentUser = auth.currentUser;
 
@@ -49,7 +49,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
     setSelectedFile(null);
   };
   
-  // Fonction pour gérer la capture photo
+  // Fonction pour gerer la capture photo
   const handleCapturePhoto = async (e) => {
     const file = e.target.files[0];
     if (file && currentConversationId) {
@@ -59,7 +59,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
   
       await addDoc(collection(db, 'conversations', currentConversationId, 'messages'), {
         createdAt: new Date(),
-        uploadedAt: new Date(), // Ajoute cette ligne pour garantir la présence d'une date
+        uploadedAt: new Date(), // Ajoute cette ligne pour garantir la presence d'une date
         senderId: currentUser.uid,
         senderName: currentUser.displayName,
         fileUrl: downloadURL,
@@ -104,7 +104,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
   
       recorder.onstop = () => setIsRecording(false);
     } catch (error) {
-      console.error("Erreur d'accès au microphone :", error);
+      console.error("Erreur d'acces au microphone :", error);
     }
   };
   
@@ -138,7 +138,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
-    setTimeout(scrollToBottom, 200); // Délai pour assurer le rendu complet avant de scroller
+    setTimeout(scrollToBottom, 200); // Delai pour assurer le rendu complet avant de scroller
   }, [messages,activeTab, files]);
 
   useEffect(() => {
@@ -189,7 +189,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
             unsubscribeRequests();
           };
         } catch (error) {
-          console.error('Erreur lors de la récupération des amis:', error);
+          console.error('Erreur lors de la recuperation des amis:', error);
         }
       }
     };
@@ -210,11 +210,11 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
             status: 'pending',
           });
 
-          alert('Invitation envoyée avec succès!');
+          alert('Invitation envoyee avec succes!');
           setShowInviteModal(false);
           setInvitedEmail('');
         } else {
-          alert('Utilisateur non trouvé.');
+          alert('Utilisateur non trouve.');
         }
       } catch (error) {
         console.error('Erreur lors de l\'invitation de l\'ami:', error);
@@ -236,7 +236,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
         return userDoc.id;
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération de l\'UID de l\'utilisateur:', error);
+      console.error('Erreur lors de la recuperation de l\'UID de l\'utilisateur:', error);
     }
     return null;
   };
@@ -272,7 +272,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
         setCurrentConversationId(newConversation.id);
       }
 
-      alert('Demande d\'ami acceptée, conversation créée.');
+      alert('Demande d\'ami acceptee, conversation creee.');
 
     } catch (error) {
       console.error('Erreur lors de l\'acceptation de la demande d\'ami:', error);
@@ -284,7 +284,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
     try {
       await deleteDoc(doc(db, 'Utilisateurs', currentUser.uid, 'amis', friendUid));
       setFriendRequests(friendRequests.filter(request => request.uid !== friendUid));
-      alert('Demande d\'ami refusée');
+      alert('Demande d\'ami refusee');
     } catch (error) {
       console.error('Erreur lors du refus de la demande d\'ami:', error);
     }
@@ -297,7 +297,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
       await deleteDoc(doc(db, 'Utilisateurs', friendUid, 'amis', currentUser.uid));
 
       setFriends(friends.filter(friend => friend.uid !== friendUid));
-      alert('Ami supprimé');
+      alert('Ami supprime');
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'ami:', error);
     }
@@ -312,10 +312,10 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
       if (profileSnap.exists()) {
         setFriendProfile(profileSnap.data());
       } else {
-        alert('Profil non trouvé');
+        alert('Profil non trouve');
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération du profil de l\'ami:', error);
+      console.error('Erreur lors de la recuperation du profil de l\'ami:', error);
     }
   };
 
@@ -338,7 +338,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
         setTimeout(scrollToBottom, 100); // Ensure that it scrolls to the latest message
       }
     } catch (error) {
-      console.error("Erreur lors de la création ou récupération de la conversation :", error);
+      console.error("Erreur lors de la creation ou recuperation de la conversation :", error);
     }
   };
 
@@ -392,7 +392,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
         fileType: file.type,
       });
   
-      alert('Fichier téléchargé avec succès');
+      alert('Fichier telecharge avec succes');
     }
   };
   
@@ -403,7 +403,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
     try {
       const messageRef = doc(db, 'conversations', currentConversationId, 'messages', messageId);
       await deleteDoc(messageRef);
-      alert('Message supprimé');
+      alert('Message supprime');
     } catch (error) {
       console.error('Erreur lors de la suppression du message:', error);
     }
@@ -464,7 +464,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
               </li>
             ))
           ) : (
-            <li className="text-gray-500">Aucun ami trouvé</li>
+            <li className="text-gray-500">Aucun ami trouve</li>
           )}
         </ul>
       </div>
@@ -505,7 +505,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
           className={`p-3 rounded-lg shadow-md text-xs max-w-xs ${msg.senderId === currentUser.uid ? 'bg-blue-500 text-white ml-auto' : 'bg-gray-200 text-black mr-auto'}`}
           style={{ alignSelf: msg.senderId === currentUser.uid ? 'flex-end' : 'flex-start' }}
         >
-          {/* Affiche le nom de l'expéditeur uniquement si ce n'est pas le message de l'utilisateur actuel */}
+          {/* Affiche le nom de l'expediteur uniquement si ce n'est pas le message de l'utilisateur actuel */}
           {msg.senderId !== currentUser.uid && (
             <p className="font-medium">{msg.senderName}</p>
           )}
@@ -515,7 +515,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
             msg.fileType && msg.fileType.startsWith('image/') ? (
               <img 
                 src={msg.fileUrl} 
-                alt="Prévisualisation" 
+                alt="Previsualisation" 
                 className="rounded-lg mt-2 max-w-full h-auto cursor-pointer"
                 onClick={() => openFileModal(msg)} // Ouvrir le fichier en grand au clic
               />
@@ -531,14 +531,14 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
                 rel="noopener noreferrer" 
                 className="text-blue-600 underline mt-2 cursor-pointer"
               >
-                {msg.fileName || "Télécharger le fichier"}
+                {msg.fileName || "Telecharger le fichier"}
               </a>
             )
           ) : (
             <p>{msg.text}</p>
           )}
 
-          {/* Affichage de l'heure et bouton de suppression pour l'expéditeur */}
+          {/* Affichage de l'heure et bouton de suppression pour l'expediteur */}
           <div className="flex justify-between items-center mt-1 text-xs">
             <span>
               {msg.createdAt && msg.createdAt.seconds 
@@ -557,7 +557,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
       <p className="text-gray-500 text-center">Aucun message pour l'instant.</p>
     )
   ) : (
-    // Afficher uniquement les fichiers triés dans l'onglet Fichiers
+    // Afficher uniquement les fichiers tries dans l'onglet Fichiers
     files.length > 0 ? (
       files
       .sort((a, b) => {
@@ -571,7 +571,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
             <img src={file.fileUrl} alt={file.fileName} className="rounded-lg mt-2 max-w-full h-auto" />
           ) : (
             <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-              {file.fileName || "Télécharger le fichier"}
+              {file.fileName || "Telecharger le fichier"}
             </a>
           )}
           <p className="text-xs mt-2 text-gray-500">
@@ -594,7 +594,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
 
 
 <div className="p-4 bg-white flex items-center border-t sticky bottom-0 space-x-2">
-  {/* Bouton pour télécharger un fichier */}
+  {/* Bouton pour telecharger un fichier */}
   <button onClick={() => fileInputRef.current.click()} className="text-gray-500 hover:text-gray-700">
     <FontAwesomeIcon icon={faFileUpload} />
   </button>
@@ -606,7 +606,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
     value={newMessage}
     onChange={(e) => setNewMessage(e.target.value)}
     onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-    placeholder="Écrire un message..."
+    placeholder="Ecrire un message..."
     className="flex-grow p-2 border border-gray-300 rounded-md"
   />
 
@@ -623,7 +623,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
     <FontAwesomeIcon icon={faCamera} />
   </button>
 
-  {/* Ajout d'un élément vidéo caché pour l'aperçu de la caméra */}
+  {/* Ajout d'un element video cache pour l'apercu de la camera */}
   <video ref={videoRef} className="hidden" />
 
   {/* Bouton pour enregistrer l'audio */}
@@ -646,7 +646,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
 
     </>
   ) : (
-    <div className="flex items-center justify-center h-full text-gray-500">Sélectionnez un ami pour commencer une conversation</div>
+    <div className="flex items-center justify-center h-full text-gray-500">Selectionnez un ami pour commencer une conversation</div>
   )}
 </div>
 
@@ -695,7 +695,7 @@ const [audioURL, setAudioURL] = useState(null); // URL pour la prévisualisation
         <img src={selectedFile.url} alt={selectedFile.name} className="rounded-lg max-w-full h-auto" />
       ) : (
         <a href={selectedFile.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-lg">
-          {selectedFile.name || "Télécharger le fichier"}
+          {selectedFile.name || "Telecharger le fichier"}
         </a>
       )}
     </div>

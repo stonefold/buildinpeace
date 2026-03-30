@@ -30,7 +30,7 @@ const Assurance = ({ chantierId, chantierName }) => {
         insuranceData.sort((a, b) => a.num - b.num);
         setInsuranceList(insuranceData);
       } catch (error) {
-        console.error('Erreur lors de la récupération des assurances :', error);
+        console.error('Erreur lors de la recuperation des assurances :', error);
       }
     };
 
@@ -58,7 +58,7 @@ const Assurance = ({ chantierId, chantierName }) => {
         date: newInsurance.date,
         pdf: pdfUrl ? pdfUrl : 'Visualiser PDF',
         status: newInsurance.status,
-        statusColor: newInsurance.status === 'SIGNÉ ET CONTRE SIGNÉ' ? 'bg-green-200' : 'bg-yellow-200'
+        statusColor: newInsurance.status === 'SIGNE ET CONTRE SIGNE' ? 'bg-green-200' : 'bg-yellow-200'
       };
 
       const docRef = await addDoc(collection(db, 'chantiers', chantierId, 'Assurances'), insuranceDoc);
@@ -107,10 +107,10 @@ const Assurance = ({ chantierId, chantierName }) => {
             </div>
             {error && <p className="text-red-500">{error}</p>}
             <div className="space-y-2">
-              <input type="text" className="w-full p-2 border rounded mb-2" placeholder="Numéro" value={newInsurance.num} onChange={(e) => setNewInsurance({ ...newInsurance, num: e.target.value })} />
+              <input type="text" className="w-full p-2 border rounded mb-2" placeholder="Numero" value={newInsurance.num} onChange={(e) => setNewInsurance({ ...newInsurance, num: e.target.value })} />
               <input type="text" className="w-full p-2 border rounded mb-2" placeholder="Titre" value={newInsurance.title} onChange={(e) => setNewInsurance({ ...newInsurance, title: e.target.value })} />
               <input type="date" className="w-full p-2 border rounded mb-2" value={newInsurance.date} onChange={(e) => setNewInsurance({ ...newInsurance, date: e.target.value })} />
-              <input type="text" className="w-full p-2 border rounded mb-4" placeholder="Statut (SIGNÉ ET CONTRE SIGNÉ ou En cours)" value={newInsurance.status} onChange={(e) => setNewInsurance({ ...newInsurance, status: e.target.value })} />
+              <input type="text" className="w-full p-2 border rounded mb-4" placeholder="Statut (SIGNE ET CONTRE SIGNE ou En cours)" value={newInsurance.status} onChange={(e) => setNewInsurance({ ...newInsurance, status: e.target.value })} />
               <input type="file" className="w-full p-2 border rounded mb-4" onChange={(e) => setSelectedFile(e.target.files[0])} />
             </div>
             <div className="flex justify-between mt-4">
@@ -125,7 +125,7 @@ const Assurance = ({ chantierId, chantierName }) => {
       <div className="block md:hidden space-y-2">
         {insuranceList.map((insurance, index) => (
           <div key={index} className="bg-gray-100 p-3 rounded shadow-md">
-            <p><strong>Numéro:</strong> {insurance.num}</p>
+            <p><strong>Numero:</strong> {insurance.num}</p>
             <p><strong>Titre:</strong> {insurance.title}</p>
             <p><strong>Date:</strong> {insurance.date}</p>
             <p><strong>Statut:</strong> <span className={insurance.statusColor}>{insurance.status}</span></p>
@@ -146,7 +146,7 @@ const Assurance = ({ chantierId, chantierName }) => {
         <table className="w-full table-auto border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="bg-gray-200">
-              <th className="border px-4 py-2 text-left">Numéro</th>
+              <th className="border px-4 py-2 text-left">Numero</th>
               <th className="border px-4 py-2 text-left">Titre</th>
               <th className="border px-4 py-2 text-left">Date</th>
               <th className="border px-4 py-2 text-left">Statut</th>

@@ -27,9 +27,9 @@ const Dashboard = () => {
 
   // Sample notifications
   const notifications = [
-    { id: 1, text: 'Nouvelle tâche assignée dans le chantier A.' },
+    { id: 1, text: 'Nouvelle tache assignee dans le chantier A.' },
     { id: 2, text: 'Nouveau message dans le chat.' },
-    { id: 3, text: 'Document partagé dans le chantier B.' },
+    { id: 3, text: 'Document partage dans le chantier B.' },
   ];
 
   return (
@@ -55,7 +55,7 @@ const Dashboard = () => {
         <ul className="space-y-4">
           {[
             { icon: faTasks, label: 'Gestion des chantiers', to: '/dashboard/chantiers' },
-            { icon: faClipboardList, label: 'Tâches personnelles', to: '/dashboard/todo' },
+            { icon: faClipboardList, label: 'Taches personnelles', to: '/dashboard/todo' },
            
             { icon: faUserFriends, label: 'Gestion des amis', to: '/dashboard/amis' },
             { icon: faCog, label: 'Configuration du profil', to: '/dashboard/profil' },

@@ -18,12 +18,12 @@ const Acteurs = ({ chantierId }) => {
   const [generalConversationId, setGeneralConversationId] = useState(null);
   const [currentConversationId, setCurrentConversationId] = useState(null); // Conversation active
   const currentUser = auth.currentUser;
-  const messagesEndRef = useRef(null); // Ref pour défiler vers le dernier message
+  const messagesEndRef = useRef(null); // Ref pour defiler vers le dernier message
   const [memberProfile, setMemberProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('chat'); // Onglet actif ('chat' ou 'fichiers')
-  const [files, setFiles] = useState([]); // Stocker les fichiers uploadés
-  const fileInputRef = useRef(null); // Référence pour l'input de fichier
-  const [selectedFile, setSelectedFile] = useState(null); // État pour le fichier sélectionné
+  const [files, setFiles] = useState([]); // Stocker les fichiers uploades
+  const fileInputRef = useRef(null); // Reference pour l'input de fichier
+  const [selectedFile, setSelectedFile] = useState(null); // Etat pour le fichier selectionne
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const videoRef = useRef(null);
@@ -63,7 +63,7 @@ const Acteurs = ({ chantierId }) => {
       videoRef.current.srcObject = stream;
       videoRef.current.play();
     } catch (error) {
-      console.error("Erreur d'accès à la caméra :", error);
+      console.error("Erreur d'acces a la camera :", error);
     }
   };
   
@@ -80,10 +80,10 @@ const Acteurs = ({ chantierId }) => {
   };
   const startRecording = async () => {
     try {
-      // Vérifier la compatibilité et demander la permission
+      // Verifier la compatibilite et demander la permission
       const hasPermissions = await navigator.permissions.query({ name: 'microphone' });
       if (hasPermissions.state === 'denied') {
-        alert("Permission pour le microphone refusée. Veuillez l'autoriser dans les paramètres.");
+        alert("Permission pour le microphone refusee. Veuillez l'autoriser dans les parametres.");
         return;
       }
   
@@ -123,7 +123,7 @@ const Acteurs = ({ chantierId }) => {
         setIsRecording(false);
       };
     } catch (error) {
-      console.error("Erreur d'accès au microphone :", error);
+      console.error("Erreur d'acces au microphone :", error);
     }
   };
   
@@ -146,7 +146,7 @@ useEffect(() => {
   return () => window.removeEventListener('resize', handleResize);
 }, []);
 
-// Forcer le plein écran sur mobile lors de l'ouverture de la conversation
+// Forcer le plein ecran sur mobile lors de l'ouverture de la conversation
 useEffect(() => {
   if (isMobile && selectedUser) {
     setIsFullScreen(true);
@@ -172,15 +172,15 @@ const closeFileModal = () => {
     }
   };
 
-  // Scroll à chaque mise à jour des messages
-// Scroll automatique vers le bas lorsque l'onglet change ou que les fichiers sont chargés
+  // Scroll a chaque mise a jour des messages
+// Scroll automatique vers le bas lorsque l'onglet change ou que les fichiers sont charges
 useEffect(() => {
-  setTimeout(scrollToBottom, 200); // Délai pour assurer le rendu complet avant de scroller
+  setTimeout(scrollToBottom, 200); // Delai pour assurer le rendu complet avant de scroller
 }, [messages,activeTab, files]);
 
 
 
-  // Récupérer les participants et créer la conversation générale
+  // Recuperer les participants et creer la conversation generale
   useEffect(() => {
     const fetchParticipants = async () => {
       if (chantierId) {
@@ -204,7 +204,7 @@ useEffect(() => {
             }
 
             if (gestionnaireEmail && !participantsList.some(member => member.email === gestionnaireEmail)) {
-              const uid = await getUserUid(gestionnaireEmail);  // Utilisez la fonction getUserUid pour récupérer l'UID correct
+              const uid = await getUserUid(gestionnaireEmail);  // Utilisez la fonction getUserUid pour recuperer l'UID correct
               participantsList.push({
                 email: gestionnaireEmail,
                 role: 'Gestionnaire',
@@ -219,7 +219,7 @@ useEffect(() => {
             console.warn("Le chantier n'existe pas.");
           }
         } catch (error) {
-          console.error('Erreur lors de la récupération des intervenants:', error);
+          console.error('Erreur lors de la recuperation des intervenants:', error);
         }
       }
     };
@@ -227,7 +227,7 @@ useEffect(() => {
     fetchParticipants();
   }, [chantierId]);
 
-  // Création ou récupération de la conversation générale
+  // Creation ou recuperation de la conversation generale
   const createOrFetchGeneralConversation = async (participantsList) => {
     const allParticipantIds = [currentUser.uid];
     for (const participant of participantsList) {
@@ -251,16 +251,16 @@ useEffect(() => {
         const newConversationRef = await addDoc(conversationsRef, {
           participants: uniqueParticipantIds,
           createdAt: new Date(),
-          name: 'Conversation générale',
+          name: 'Conversation generale',
         });
         setGeneralConversationId(newConversationRef.id);
       }
     } catch (error) {
-      console.error("Erreur lors de la création ou récupération de la conversation générale :", error);
+      console.error("Erreur lors de la creation ou recuperation de la conversation generale :", error);
     }
   };
 
-  // Récupérer l'UID d'un utilisateur via son email
+  // Recuperer l'UID d'un utilisateur via son email
   const getUserUid = async (email) => {
     try {
       const usersCollection = collection(db, 'Utilisateurs');
@@ -272,23 +272,23 @@ useEffect(() => {
         return userDoc.id;
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération de l\'UID de l\'utilisateur:', error);
+      console.error('Erreur lors de la recuperation de l\'UID de l\'utilisateur:', error);
     }
     return null;
   };
 
   const fetchMemberProfile = async (uid) => {
     try {
-      const profileRef = doc(db, 'Utilisateurs', uid, 'Profiles', 'profileData'); // Chemin vers les données du profil
+      const profileRef = doc(db, 'Utilisateurs', uid, 'Profiles', 'profileData'); // Chemin vers les donnees du profil
       const profileSnap = await getDoc(profileRef);
   
       if (profileSnap.exists()) {
-        setMemberProfile(profileSnap.data()); // Stocker le profil récupéré
+        setMemberProfile(profileSnap.data()); // Stocker le profil recupere
       } else {
-        alert('Profil non trouvé');
+        alert('Profil non trouve');
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération du profil:', error);
+      console.error('Erreur lors de la recuperation du profil:', error);
     }
   };
 
@@ -300,14 +300,14 @@ useEffect(() => {
 }, [activeTab, currentConversationId]);
   
   
-  // Démarrer une conversation
+  // Demarrer une conversation
   const startConversation = async (user) => {
     setSelectedUser(user);
-    setMessages([]); // Réinitialiser les messages au changement de conversation
+    setMessages([]); // Reinitialiser les messages au changement de conversation
 
     if (user.type === 'general') {
       listenToMessages(generalConversationId);
-      setCurrentConversationId(generalConversationId); // Mettre à jour l'ID de la conversation active
+      setCurrentConversationId(generalConversationId); // Mettre a jour l'ID de la conversation active
       setTimeout(scrollToBottom, 100); // Scroller vers le dernier message
     } else {
       const selectedUserUid = await getUserUid(user.email);
@@ -322,7 +322,7 @@ useEffect(() => {
         if (!existingConversations.empty) {
           const existingConversation = existingConversations.docs[0];
           listenToMessages(existingConversation.id);
-          setCurrentConversationId(existingConversation.id); // Mettre à jour l'ID de la conversation active
+          setCurrentConversationId(existingConversation.id); // Mettre a jour l'ID de la conversation active
           setTimeout(scrollToBottom, 100); // Scroller vers le dernier message
         } else {
           const newConversationRef = await addDoc(conversationsRef, {
@@ -330,15 +330,15 @@ useEffect(() => {
             createdAt: new Date(),
           });
           setCurrentConversationId(newConversationRef.id);
-          listenToMessages(newConversationRef.id); // Écouter les messages de cette nouvelle conversation
+          listenToMessages(newConversationRef.id); // Ecouter les messages de cette nouvelle conversation
         }
       } catch (error) {
-        console.error("Erreur lors de la création ou récupération de la conversation privée :", error);
+        console.error("Erreur lors de la creation ou recuperation de la conversation privee :", error);
       }
     }
   };
 
-  // Écouter les messages de la conversation active
+  // Ecouter les messages de la conversation active
   const listenToMessages = (conversationId) => {
     const conversationRef = collection(db, 'chantiers', chantierId, 'conversations', conversationId, 'messages');
     const q = query(conversationRef, orderBy('createdAt', 'asc'));
@@ -378,7 +378,7 @@ useEffect(() => {
       await addDoc(collection(db, 'chantiers', chantierId, 'conversations', currentConversationId, 'messages'), messageData);
   
       setNewMessage('');
-      fileInputRef.current.value = ''; // Réinitialiser l'input de fichier
+      fileInputRef.current.value = ''; // Reinitialiser l'input de fichier
     }
   };
   
@@ -398,7 +398,7 @@ useEffect(() => {
         fileType: file.type,
       });
   
-      alert('Fichier téléchargé avec succès');
+      alert('Fichier telecharge avec succes');
     }
   };
   
@@ -407,7 +407,7 @@ useEffect(() => {
       const filesCollectionRef = collection(db, 'chantiers', chantierId, 'conversations', currentConversationId, 'files');
       const filesSnapshot = await getDocs(filesCollectionRef);
       const fetchedFiles = filesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setFiles(fetchedFiles); // Mettez à jour l'état des fichiers
+      setFiles(fetchedFiles); // Mettez a jour l'etat des fichiers
     }
   };
   
@@ -426,7 +426,7 @@ useEffect(() => {
     try {
       const messageRef = doc(db, 'chantiers', chantierId, 'conversations', currentConversationId, 'messages', messageId);
       await deleteDoc(messageRef);
-      alert('Message supprimé avec succès');
+      alert('Message supprime avec succes');
     } catch (error) {
       console.error('Erreur lors de la suppression du message:', error);
     }
@@ -445,7 +445,7 @@ useEffect(() => {
             <div className="flex items-center">
               <FontAwesomeIcon icon={faUsers} className="text-gray-600 w-8 h-8" />
               <div className="ml-3">
-                <p className="text-sm font-semibold">Conversation générale</p>
+                <p className="text-sm font-semibold">Conversation generale</p>
               </div>
             </div>
           </li>
@@ -467,7 +467,7 @@ useEffect(() => {
             
             ))
           ) : (
-            <li className="text-gray-500">Aucun intervenant trouvé</li>
+            <li className="text-gray-500">Aucun intervenant trouve</li>
           )}
         </ul>
       </div>
@@ -479,31 +479,31 @@ useEffect(() => {
 
   {selectedUser ? (
     <>
-      {/* En-tête de la conversation avec flèche de retour, nom et onglets Photos/Chat */}
-      {/* En-tête de la conversation avec flèche de retour, nom et onglets Fichiers/Chat */}
+      {/* En-tete de la conversation avec fleche de retour, nom et onglets Photos/Chat */}
+      {/* En-tete de la conversation avec fleche de retour, nom et onglets Fichiers/Chat */}
       <div className="p-2 bg-white shadow-md flex flex-col items-center space-y-1">
   <div className="flex items-center w-full">
-    {/* Bouton de retour, toujours aligné à gauche */}
+    {/* Bouton de retour, toujours aligne a gauche */}
     <button 
       onClick={() => {
         if (isFullScreen && isMobile) {
           setSelectedUser(null); // Ferme la conversation
-          setIsFullScreen(false); // Désactive le mode plein écran
+          setIsFullScreen(false); // Desactive le mode plein ecran
         } else {
-          setSelectedUser(null); // Retourne à la liste des utilisateurs
+          setSelectedUser(null); // Retourne a la liste des utilisateurs
         }
       }} 
       className="text-blue-500 hover:text-blue-600 mr-2"
-      style={{ position: 'absolute', left: '10px' }} // Position fixe pour rester à gauche
+      style={{ position: 'absolute', left: '10px' }} // Position fixe pour rester a gauche
     >
       <FontAwesomeIcon icon={faArrowLeft} className="w-4 h-4" />
     </button>
 
-    {/* Nom de l'utilisateur avec icône, centré */}
+    {/* Nom de l'utilisateur avec icone, centre */}
     <div className="flex-grow flex items-center justify-center">
       <FontAwesomeIcon icon={faUserCircle} className="text-gray-600 w-5 h-5 mr-2" />
       <div className="text-center">
-        <p className="text-sm font-semibold">{selectedUser.name || selectedUser.email || "Conversation générale"}</p>
+        <p className="text-sm font-semibold">{selectedUser.name || selectedUser.email || "Conversation generale"}</p>
         <p className="text-xs text-gray-500">{selectedUser.role}</p>
       </div>
     </div>
@@ -512,11 +512,11 @@ useEffect(() => {
   {/* Onglets Fichiers et Chat */}
   <div className="flex justify-center space-x-2 w-full mt-1">
     <button onClick={() => setActiveTab('files')} className={`flex items-center px-2 py-1 rounded-full ${activeTab === 'files' ? 'bg-blue-100 text-blue-600 font-bold' : 'text-gray-600'}`}>
-      <FontAwesomeIcon icon={faFolder} className="mr-1 w-4 h-4" /> {/* Icône Fichiers */}
+      <FontAwesomeIcon icon={faFolder} className="mr-1 w-4 h-4" /> {/* Icone Fichiers */}
       <span className="text-xs">Fichiers</span>
     </button>
     <button onClick={() => setActiveTab('chat')} className={`flex items-center px-2 py-1 rounded-full ${activeTab === 'chat' ? 'bg-blue-100 text-blue-600 font-bold' : 'text-gray-600'}`}>
-      <FontAwesomeIcon icon={faCommentDots} className="mr-1 w-4 h-4" /> {/* Icône Chat */}
+      <FontAwesomeIcon icon={faCommentDots} className="mr-1 w-4 h-4" /> {/* Icone Chat */}
       <span className="text-xs">Chat</span>
     </button>
   </div>
@@ -538,17 +538,17 @@ useEffect(() => {
           className={`p-3 rounded-lg shadow-md text-xs max-w-xs ${msg.senderId === currentUser.uid ? 'bg-blue-500 text-white ml-auto' : 'bg-gray-200 text-black mr-auto'}`}
           style={{ alignSelf: msg.senderId === currentUser.uid ? 'flex-end' : 'flex-start' }}
         >
-          {/* Affiche le nom de l'expéditeur uniquement si ce n'est pas le message de l'utilisateur actuel */}
+          {/* Affiche le nom de l'expediteur uniquement si ce n'est pas le message de l'utilisateur actuel */}
           {msg.senderId !== currentUser.uid && (
             <p className="font-medium">{msg.senderName}</p>
           )}
 
-          {/* Vérification pour l'affichage de la prévisualisation des fichiers */}
+          {/* Verification pour l'affichage de la previsualisation des fichiers */}
           {msg.fileUrl ? (
   msg.fileType && msg.fileType.startsWith('image/') ? (
     <img 
       src={msg.fileUrl} 
-      alt="Prévisualisation" 
+      alt="Previsualisation" 
       className="rounded-lg mt-2 max-w-full h-auto cursor-pointer"
       onClick={() => openFileModal(msg)} // Ouvrir le fichier en grand au clic
     />
@@ -564,7 +564,7 @@ useEffect(() => {
       rel="noopener noreferrer" 
       className="text-blue-600 underline mt-2 cursor-pointer"
     >
-      {msg.fileName || "Télécharger le fichier"}
+      {msg.fileName || "Telecharger le fichier"}
     </a>
   )
 ) : (
@@ -591,12 +591,12 @@ useEffect(() => {
       files.map((file, index) => (
         <div key={file.id} className="p-3 bg-gray-200 rounded-lg shadow-md max-w-xs mx-auto cursor-pointer" onClick={() => openFileModal(file)}>
 
-        {/* Vérification pour l'affichage de la prévisualisation des fichiers */}
+        {/* Verification pour l'affichage de la previsualisation des fichiers */}
           {file.fileType && file.fileType.startsWith('image/') ? (
             <img src={file.url} alt={file.name} className="rounded-lg mt-2 max-w-full h-auto" />
           ) : (
             <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-              {file.name || "Télécharger le fichier"}
+              {file.name || "Telecharger le fichier"}
             </a>
           )}
           <p className="text-xs mt-2 text-gray-500">{new Date(file.uploadedAt.seconds * 1000).toLocaleTimeString()}</p>
@@ -611,9 +611,9 @@ useEffect(() => {
 
 
 
-      {/* Barre de saisie de message avec les icônes de fichier, caméra et microphone */}
+      {/* Barre de saisie de message avec les icones de fichier, camera et microphone */}
       <div className="p-4 bg-white flex items-center border-t sticky bottom-0 space-x-2">
-  {/* Bouton pour télécharger un fichier */}
+  {/* Bouton pour telecharger un fichier */}
   <button onClick={() => fileInputRef.current.click()} className="text-gray-500 hover:text-gray-700">
     <FontAwesomeIcon icon={faFileUpload} />
   </button>
@@ -642,7 +642,7 @@ useEffect(() => {
 />
 
 
-  {/* Ajout d'un élément vidéo caché pour l'aperçu de la caméra */}
+  {/* Ajout d'un element video cache pour l'apercu de la camera */}
   <video ref={videoRef} className="hidden" />
 
   {/* Bouton pour enregistrer l'audio */}
@@ -692,7 +692,7 @@ useEffect(() => {
         <img src={selectedFile.url} alt={selectedFile.name} className="rounded-lg max-w-full h-auto" />
       ) : (
         <a href={selectedFile.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-lg">
-          {selectedFile.name || "Télécharger le fichier"}
+          {selectedFile.name || "Telecharger le fichier"}
         </a>
       )}
     </div>

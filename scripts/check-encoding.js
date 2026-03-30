@@ -2,16 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const includeExt = new Set(['.js', '.jsx', '.ts', '.tsx', '.css', '.html', '.json', '.sql']);
+const includeExt = new Set(['.js', '.jsx', '.ts', '.tsx', '.css', '.html', '.json', '.sql', '.md']);
 const skipDirs = new Set(['node_modules', 'build', '.git', '.firebase']);
 const suspiciousPatterns = [
-  /Ã./,
-  /Â./,
-  /â€™/,
-  /â€¢/,
-  /â€œ/,
-  /â€\x9d/,
-  /�/,
+  /(?:\u00C3[\u0080-\u00BF])/,
+  /(?:\u00C2[\u0080-\u00BF])/,
+  /\u00E2\u0080[\u0098-\u009F]/,
+  /\u00EF\u00BF\u00BD/,
 ];
 
 const findings = [];
@@ -32,7 +29,7 @@ function walk(dir) {
     const lines = content.split(/\r?\n/);
     lines.forEach((line, index) => {
       if (suspiciousPatterns.some((pattern) => pattern.test(line))) {
-        findings.push(`${path.relative(root, fullPath)}:${index + 1}: ${line.trim()}`);
+        findings.push(`${relativePath}:${index + 1}: ${line.trim()}`);
       }
     });
   }

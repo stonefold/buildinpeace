@@ -1,0 +1,73 @@
+-- Destructif: remet a zero le schema applicatif Buildinpeace
+-- Note: Supabase interdit la suppression directe dans storage.objects/storage.buckets via SQL.
+-- Le bucket workspace-assets est donc laisse en place; 002 le recree en mode idempotent si necessaire.
+
+drop table if exists public.notifications cascade;
+drop table if exists public.user_directory_documents cascade;
+drop table if exists public.project_admin_documents cascade;
+drop table if exists public.project_documents cascade;
+drop table if exists public.direct_conversation_participants cascade;
+drop table if exists public.direct_conversations cascade;
+drop table if exists public.chantier_conversation_participants cascade;
+drop table if exists public.chantier_conversations cascade;
+drop table if exists public.chantier_task_assignees cascade;
+drop table if exists public.chantier_tasks cascade;
+drop table if exists public.chantier_sections cascade;
+drop table if exists public.chantier_participants cascade;
+drop table if exists public.chantiers cascade;
+drop table if exists public.activity_events cascade;
+drop table if exists public.messages cascade;
+drop table if exists public.conversation_members cascade;
+drop table if exists public.conversation_participants cascade;
+drop table if exists public.conversations cascade;
+drop table if exists public.plan_versions cascade;
+drop table if exists public.plans cascade;
+drop table if exists public.documents cascade;
+drop table if exists public.task_comments cascade;
+drop table if exists public.task_assignees cascade;
+drop table if exists public.tasks cascade;
+drop table if exists public.task_lists cascade;
+drop table if exists public.project_sections cascade;
+drop table if exists public.project_invitations cascade;
+drop table if exists public.project_members cascade;
+drop table if exists public.project_participants cascade;
+drop table if exists public.projects cascade;
+drop table if exists public.organization_members cascade;
+drop table if exists public.organizations cascade;
+drop table if exists public.user_directories cascade;
+drop table if exists public.storage_assets cascade;
+drop table if exists public.friendships cascade;
+drop table if exists public.profiles cascade;
+drop table if exists public.users cascade;
+drop table if exists public.project_activity cascade;
+
+drop function if exists public.bootstrap_workspace() cascade;
+drop function if exists public.current_user_in_org(uuid) cascade;
+drop function if exists public.current_user_is_org_admin(uuid) cascade;
+drop function if exists public.current_user_can_manage_org(uuid) cascade;
+drop function if exists public.current_user_in_project(uuid) cascade;
+drop function if exists public.current_user_can_manage_project(uuid) cascade;
+drop function if exists public.current_user_in_conversation(uuid) cascade;
+drop function if exists public.current_user_can_manage_conversation(uuid) cascade;
+drop function if exists public.current_user_can_read_task(uuid) cascade;
+drop function if exists public.current_user_can_manage_task(uuid) cascade;
+drop function if exists public.current_user_can_read_plan(uuid) cascade;
+drop function if exists public.current_user_can_manage_plan(uuid) cascade;
+drop function if exists public.legacy_current_user_owns_project(uuid) cascade;
+drop function if exists public.legacy_current_user_in_project(uuid) cascade;
+drop function if exists public.legacy_current_user_owns_task_list(uuid) cascade;
+drop function if exists public.legacy_current_user_in_conversation(uuid) cascade;
+drop function if exists public.set_updated_at() cascade;
+
+drop type if exists public.conversation_type cascade;
+drop type if exists public.document_kind cascade;
+drop type if exists public.organization_role cascade;
+drop type if exists public.membership_status cascade;
+drop type if exists public.project_role cascade;
+drop type if exists public.project_status cascade;
+drop type if exists public.participant_role cascade;
+drop type if exists public.task_status cascade;
+drop type if exists public.task_priority cascade;
+drop type if exists public.friendship_status cascade;
+drop type if exists public.document_scope cascade;
+drop type if exists public.message_scope cascade;

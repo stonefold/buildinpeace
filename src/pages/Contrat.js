@@ -49,7 +49,7 @@ const Contrat = ({ chantierId, chantierName }) => {
     }
 
     if (isNaN(newContract.amount)) {
-      setError('Le montant doit être un nombre valide.');
+      setError('Le montant doit etre un nombre valide.');
       return;
     }
 
@@ -120,7 +120,7 @@ const Contrat = ({ chantierId, chantierName }) => {
             <h3 className="text-lg font-bold mb-4 text-center">Nouveau Contrat</h3>
             {error && <p className="text-red-500 mb-2">{error}</p>}
             <div className="space-y-2">
-              <input type="text" className="w-full p-2 border rounded" placeholder="Numéro" value={newContract.num} onChange={(e) => setNewContract({ ...newContract, num: e.target.value })} />
+              <input type="text" className="w-full p-2 border rounded" placeholder="Numero" value={newContract.num} onChange={(e) => setNewContract({ ...newContract, num: e.target.value })} />
               <input type="text" className="w-full p-2 border rounded" placeholder="Titre" value={newContract.title} onChange={(e) => setNewContract({ ...newContract, title: e.target.value })} />
               <input type="text" className="w-full p-2 border rounded" placeholder="Client" value={newContract.client} onChange={(e) => setNewContract({ ...newContract, client: e.target.value })} />
               <input type="text" className="w-full p-2 border rounded" placeholder="Gestionnaire" value={newContract.manager} onChange={(e) => setNewContract({ ...newContract, manager: e.target.value })} />
@@ -147,11 +147,11 @@ const Contrat = ({ chantierId, chantierName }) => {
       <div className="block md:hidden space-y-2">
         {currentContracts.map((contract, index) => (
           <div key={index} className="bg-gray-100 p-3 rounded shadow-md">
-            <p><strong>Numéro:</strong> {contract.num}</p>
+            <p><strong>Numero:</strong> {contract.num}</p>
             <p><strong>Titre:</strong> {contract.title}</p>
             <p><strong>Client:</strong> {contract.client}</p>
             <p><strong>Gestionnaire:</strong> {contract.manager} ({contract.managerInitials})</p>
-            <p><strong>Date de début:</strong> {contract.startDate}</p>
+            <p><strong>Date de debut:</strong> {contract.startDate}</p>
             <p><strong>Date de fin:</strong> {contract.endDate}</p>
             <div className="flex justify-between mt-2">
               <a href={contract.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center">
@@ -171,11 +171,11 @@ const Contrat = ({ chantierId, chantierName }) => {
         <table className="w-full table-auto border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="bg-gray-200">
-              <th className="border p-2">N°</th>
+              <th className="border p-2">Ndeg</th>
               <th className="border p-2">Titre</th>
               <th className="border p-2">Client</th>
               <th className="border p-2">Gestionnaire</th>
-              <th className="border p-2">Date de début</th>
+              <th className="border p-2">Date de debut</th>
               <th className="border p-2">Date de fin</th>
               <th className="border p-2">PDF</th>
               <th className="border p-2">Actions</th>

@@ -24,11 +24,11 @@ export const requestForToken = async () => {
       console.log('Aucun token disponible. Demander la permission pour les notifications.');
     }
   } catch (error) {
-    console.error('Erreur lors de la récupération du token FCM:', error);
+    console.error('Erreur lors de la recuperation du token FCM:', error);
   }
 };
 
-// Fonction pour écouter les notifications en temps réel
+// Fonction pour ecouter les notifications en temps reel
 export const onMessageListener = () =>
   new Promise((resolve) => {
     onMessage(messaging, (payload) => {

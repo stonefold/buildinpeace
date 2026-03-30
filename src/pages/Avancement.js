@@ -46,7 +46,7 @@ const Avancement = ({ chantierId, chantierName }) => {
     }
 
     if (isNaN(newProgress.amount)) {
-      setError('Le montant doit être un nombre valide.');
+      setError('Le montant doit etre un nombre valide.');
       return;
     }
 
@@ -67,7 +67,7 @@ const Avancement = ({ chantierId, chantierName }) => {
         amount: parseFloat(newProgress.amount),
         status: newProgress.status,
         pdf: pdfUrl,
-        statusColor: newProgress.status === 'VALIDÉ' ? 'bg-green-200' : 'bg-yellow-200',
+        statusColor: newProgress.status === 'VALIDE' ? 'bg-green-200' : 'bg-yellow-200',
       });
 
       setProgressList([...progressList, { id: docRef.id, ...newProgress, pdf: pdfUrl }]);
@@ -109,11 +109,11 @@ const Avancement = ({ chantierId, chantierName }) => {
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">Nouvel Avancement</h3>
             {error && <p className="text-red-500 mb-2">{error}</p>}
-            <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Numéro" value={newProgress.num} onChange={(e) => setNewProgress({ ...newProgress, num: e.target.value })} />
+            <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Numero" value={newProgress.num} onChange={(e) => setNewProgress({ ...newProgress, num: e.target.value })} />
             <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Titre" value={newProgress.title} onChange={(e) => setNewProgress({ ...newProgress, title: e.target.value })} />
             <input type="date" className="w-full mb-2 p-2 border rounded" value={newProgress.date} onChange={(e) => setNewProgress({ ...newProgress, date: e.target.value })} />
             <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Montant" value={newProgress.amount} onChange={(e) => setNewProgress({ ...newProgress, amount: e.target.value })} />
-            <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Statut (VALIDÉ ou Modifié)" value={newProgress.status} onChange={(e) => setNewProgress({ ...newProgress, status: e.target.value })} />
+            <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Statut (VALIDE ou Modifie)" value={newProgress.status} onChange={(e) => setNewProgress({ ...newProgress, status: e.target.value })} />
             <input type="file" className="w-full mb-2" onChange={(e) => setNewProgress({ ...newProgress, pdfFile: e.target.files[0] })} />
             <div className="flex justify-between mt-4">
               <button className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-500 flex-1 mr-2" onClick={handleAddProgress}>Ajouter</button>
@@ -127,10 +127,10 @@ const Avancement = ({ chantierId, chantierName }) => {
       <div className="block md:hidden space-y-2">
         {progressList.map((progress, index) => (
           <div key={index} className="bg-gray-100 p-3 rounded shadow-md">
-            <p><strong>Numéro:</strong> {progress.num}</p>
+            <p><strong>Numero:</strong> {progress.num}</p>
             <p><strong>Titre:</strong> {progress.title}</p>
             <p><strong>Date:</strong> {progress.date}</p>
-            <p><strong>Montant:</strong> {parseFloat(progress.amount).toLocaleString()} €</p>
+            <p><strong>Montant:</strong> {parseFloat(progress.amount).toLocaleString()} EUR</p>
             <p><strong>Statut:</strong> <span className={progress.statusColor}>{progress.status}</span></p>
             <div className="flex justify-between mt-2">
               <a href={progress.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center">
@@ -150,7 +150,7 @@ const Avancement = ({ chantierId, chantierName }) => {
         <table className="w-full table-auto border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="bg-gray-200">
-              <th className="border p-2">Numéro</th>
+              <th className="border p-2">Numero</th>
               <th className="border p-2">Titre</th>
               <th className="border p-2">Date</th>
               <th className="border p-2">Montant</th>
@@ -165,7 +165,7 @@ const Avancement = ({ chantierId, chantierName }) => {
                 <td className="border p-2 text-center">{progress.num}</td>
                 <td className="border p-2">{progress.title}</td>
                 <td className="border p-2">{progress.date}</td>
-                <td className="border p-2 text-center">{parseFloat(progress.amount).toLocaleString()} €</td>
+                <td className="border p-2 text-center">{parseFloat(progress.amount).toLocaleString()} EUR</td>
                 <td className={`border p-2 text-center ${progress.statusColor}`}>{progress.status}</td>
                 <td className="border p-2 text-center">
                   <a href={progress.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center justify-center">

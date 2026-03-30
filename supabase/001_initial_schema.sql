@@ -288,6 +288,66 @@ create table if not exists public.project_activity (
   created_at timestamptz not null default now()
 );
 
+create or replace function public.legacy_current_user_owns_project(target_project_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1
+    from public.projects p
+    where p.id = target_project_id
+      and p.owner_user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.legacy_current_user_in_project(target_project_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select public.legacy_current_user_owns_project(target_project_id)
+  or exists (
+    select 1
+    from public.project_participants pp
+    where pp.project_id = target_project_id
+      and pp.user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.legacy_current_user_owns_task_list(target_task_list_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1
+    from public.task_lists tl
+    where tl.id = target_task_list_id
+      and tl.owner_user_id = auth.uid()
+  )
+  or exists (
+    select 1
+    from public.task_lists tl
+    join public.projects p on p.id = tl.project_id
+    where tl.id = target_task_list_id
+      and p.owner_user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.legacy_current_user_in_conversation(target_conversation_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1
+    from public.conversation_participants cp
+    where cp.conversation_id = target_conversation_id
+      and cp.user_id = auth.uid()
+  );
+$$;
+
 create index if not exists idx_project_participants_project_id on public.project_participants(project_id);
 create index if not exists idx_tasks_project_id on public.tasks(project_id);
 create index if not exists idx_tasks_task_list_id on public.tasks(task_list_id);
@@ -360,102 +420,35 @@ with check (auth.uid() = user_id);
 create policy "project members can read projects"
 on public.projects for select
 using (
-  owner_user_id = auth.uid()
-  or exists (
-    select 1
-    from public.project_participants pp
-    where pp.project_id = projects.id
-      and pp.user_id = auth.uid()
-  )
+  public.legacy_current_user_in_project(id)
 );
 
 create policy "project owners can write projects"
 on public.projects for all
-using (owner_user_id = auth.uid())
-with check (owner_user_id = auth.uid());
+using (public.legacy_current_user_owns_project(id))
+with check (public.legacy_current_user_owns_project(id));
 
 create policy "project members can read participants"
 on public.project_participants for select
-using (
-  exists (
-    select 1
-    from public.project_participants pp
-    where pp.project_id = project_participants.project_id
-      and pp.user_id = auth.uid()
-  )
-);
+using (public.legacy_current_user_in_project(project_id));
 
 create policy "project owners can manage participants"
 on public.project_participants for all
-using (
-  exists (
-    select 1
-    from public.projects p
-    where p.id = project_participants.project_id
-      and p.owner_user_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1
-    from public.projects p
-    where p.id = project_participants.project_id
-      and p.owner_user_id = auth.uid()
-  )
-);
+using (public.legacy_current_user_owns_project(project_id))
+with check (public.legacy_current_user_owns_project(project_id));
 
 create policy "task readers are project members or owners"
 on public.tasks for select
 using (
   created_by_user_id = auth.uid()
-  or exists (
-    select 1
-    from public.project_participants pp
-    where pp.project_id = tasks.project_id
-      and pp.user_id = auth.uid()
-  )
-  or exists (
-    select 1
-    from public.task_lists tl
-    where tl.id = tasks.task_list_id
-      and tl.owner_user_id = auth.uid()
-  )
+  or public.legacy_current_user_in_project(project_id)
+  or public.legacy_current_user_owns_task_list(task_list_id)
 );
 
 create policy "task writers own the task list or project"
 on public.tasks for all
-using (
-  exists (
-    select 1
-    from public.task_lists tl
-    where tl.id = tasks.task_list_id
-      and (
-        tl.owner_user_id = auth.uid()
-        or exists (
-          select 1
-          from public.projects p
-          where p.id = tl.project_id
-            and p.owner_user_id = auth.uid()
-        )
-      )
-  )
-)
-with check (
-  exists (
-    select 1
-    from public.task_lists tl
-    where tl.id = tasks.task_list_id
-      and (
-        tl.owner_user_id = auth.uid()
-        or exists (
-          select 1
-          from public.projects p
-          where p.id = tl.project_id
-            and p.owner_user_id = auth.uid()
-        )
-      )
-  )
-);
+using (public.legacy_current_user_owns_task_list(task_list_id))
+with check (public.legacy_current_user_owns_task_list(task_list_id));
 
 create policy "friendship participants can view"
 on public.friendships for select
@@ -467,60 +460,29 @@ with check (requester_user_id = auth.uid());
 
 create policy "conversation participants can read"
 on public.conversations for select
-using (
-  exists (
-    select 1
-    from public.conversation_participants cp
-    where cp.conversation_id = conversations.id
-      and cp.user_id = auth.uid()
-  )
-);
+using (public.legacy_current_user_in_conversation(id));
 
 create policy "conversation participants can read messages"
 on public.messages for select
-using (
-  exists (
-    select 1
-    from public.conversation_participants cp
-    where cp.conversation_id = messages.conversation_id
-      and cp.user_id = auth.uid()
-  )
-);
+using (public.legacy_current_user_in_conversation(conversation_id));
 
 create policy "conversation participants can insert messages"
 on public.messages for insert
 with check (
   sender_user_id = auth.uid()
-  and exists (
-    select 1
-    from public.conversation_participants cp
-    where cp.conversation_id = messages.conversation_id
-      and cp.user_id = auth.uid()
-  )
+  and public.legacy_current_user_in_conversation(conversation_id)
 );
 
 create policy "project members can read documents"
 on public.documents for select
 using (
   created_by_user_id = auth.uid()
-  or exists (
-    select 1
-    from public.project_participants pp
-    where pp.project_id = documents.project_id
-      and pp.user_id = auth.uid()
-  )
+  or public.legacy_current_user_in_project(project_id)
 );
 
 create policy "project members can read plans"
 on public.plans for select
-using (
-  exists (
-    select 1
-    from public.project_participants pp
-    where pp.project_id = plans.project_id
-      and pp.user_id = auth.uid()
-  )
-);
+using (public.legacy_current_user_in_project(project_id));
 
 insert into public.projects (
   id,

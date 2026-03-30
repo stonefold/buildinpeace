@@ -1,70 +1,95 @@
-# Getting Started with Create React App
+# Buildinpeace
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Application SaaS de gestion de chantiers avec frontend React existant et backend Supabase.
 
-## Available Scripts
+## Stack cible
 
-In the project directory, you can run:
+- Frontend: React 18 + CRA existant
+- Backend: Supabase PostgreSQL, Auth, RLS, Realtime, Storage
+- Deploiement front: Vercel
+- Deploiement backend: Supabase
 
-### `npm start`
+## Ce qui a ete mis en place
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Auth Google via Supabase
+- Couche data `src/services/workspaceApi.js`
+- Hook de chargement/mutations `src/hooks/useWorkspaceData.js`
+- Integration du workspace reel dans `src/pages/WorkspaceV2.js`
+- Migration SQL multi-tenant `supabase/002_workspace_production.sql`
+- Buckets/Storage prives `workspace-assets`
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Audit et architecture
 
-### `npm test`
+- Audit existant: [ANALYSE_APPLICATION.md](./ANALYSE_APPLICATION.md)
+- Architecture cible et checklist projet: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Variables d'environnement
 
-### `npm run build`
+Copier `.env.example` vers `.env.local` puis renseigner:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+REACT_APP_SUPABASE_URL=
+REACT_APP_SUPABASE_ANON_KEY=
+REACT_APP_SUPABASE_REDIRECT_URL=http://localhost:3000/
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+`SUPABASE_SERVICE_ROLE_KEY` ne doit jamais etre exposee cote navigateur.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Setup local
 
-### `npm run eject`
+1. Installer les dependances:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+npm install
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+2. Executer les migrations SQL dans Supabase dans l'ordre:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```sql
+supabase/001_initial_schema.sql
+supabase/002_workspace_production.sql
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+3. Dans Supabase Dashboard:
 
-## Learn More
+- Activer Google dans `Authentication > Providers`
+- Ajouter `http://localhost:3000/` comme redirect URL
+- Verifier que Realtime est active pour `messages`, `tasks`, `documents`
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+4. Lancer l'application:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+npm start
+```
 
-### Code Splitting
+## Build
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```bash
+npm run build
+```
 
-### Analyzing the Bundle Size
+Build verifie le `2026-03-30`.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Deploiement
 
-### Making a Progressive Web App
+### Frontend
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+- Importer le repo dans Vercel
+- Configurer:
+  - `REACT_APP_SUPABASE_URL`
+  - `REACT_APP_SUPABASE_ANON_KEY`
+  - `REACT_APP_SUPABASE_REDIRECT_URL=https://<votre-domaine>/`
 
-### Advanced Configuration
+### Supabase
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+- Appliquer les migrations
+- Activer Auth Google
+- Configurer le bucket `workspace-assets`
+- Verifier les policies RLS avant ouverture publique
 
-### Deployment
+## Commandes utiles
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```bash
+npm run build
+npm test
+```

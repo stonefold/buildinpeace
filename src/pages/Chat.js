@@ -17,7 +17,7 @@ const Chat = () => {
   const [uploading, setUploading] = useState(false);
   const user = auth.currentUser;
 
-  // Récupérer les sujets où l'utilisateur est créateur ou invité
+  // Recuperer les sujets ou l'utilisateur est createur ou invite
   useEffect(() => {
     if (user) {
       const q = query(
@@ -31,7 +31,7 @@ const Chat = () => {
     }
   }, [user]);
 
-  // Récupérer les messages pour le sujet sélectionné
+  // Recuperer les messages pour le sujet selectionne
   useEffect(() => {
     if (selectedSubject) {
       const messagesRef = collection(db, 'subjects', selectedSubject.id, 'messages');
@@ -60,7 +60,7 @@ const Chat = () => {
         });
         setNewSubject('');
       } catch (error) {
-        console.error("Erreur lors de la création du sujet:", error);
+        console.error("Erreur lors de la creation du sujet:", error);
       }
     }
   };
@@ -101,7 +101,7 @@ const Chat = () => {
     }
   };
 
-  // Inviter un participant à un sujet
+  // Inviter un participant a un sujet
   const inviteParticipant = async () => {
     if (!user || !inviteEmail.trim() || !selectedSubject) return;
     try {
@@ -116,14 +116,14 @@ const Chat = () => {
         await updateDoc(subjectDocRef, { participants: updatedParticipants });
         setInviteEmail('');
       } else {
-        alert('Utilisateur non trouvé');
+        alert('Utilisateur non trouve');
       }
     } catch (error) {
       console.error("Erreur lors de l'invitation de l'utilisateur:", error);
     }
   };
 
-  // Épingler un message
+  // Epingler un message
   const pinMessage = async (messageId) => {
     if (selectedSubject && (selectedSubject.pinnedMessages || []).length < 2) {
       try {
@@ -132,14 +132,14 @@ const Chat = () => {
         await updateDoc(subjectDocRef, { pinnedMessages: updatedPinned });
         setSelectedSubject({ ...selectedSubject, pinnedMessages: updatedPinned });
       } catch (error) {
-        console.error("Erreur lors de l'épinglage du message:", error);
+        console.error("Erreur lors de l'epinglage du message:", error);
       }
     } else {
-      alert("Vous pouvez épingler jusqu'à 2 messages maximum.");
+      alert("Vous pouvez epingler jusqu'a 2 messages maximum.");
     }
   };
 
-  // Désépingler un message
+  // Desepingler un message
   const unpinMessage = async (messageId) => {
     if (selectedSubject) {
       try {
@@ -148,12 +148,12 @@ const Chat = () => {
         await updateDoc(subjectDocRef, { pinnedMessages: updatedPinned });
         setSelectedSubject({ ...selectedSubject, pinnedMessages: updatedPinned });
       } catch (error) {
-        console.error("Erreur lors du désépinglage du message:", error);
+        console.error("Erreur lors du desepinglage du message:", error);
       }
     }
   };
 
-  // Gestion du fichier à uploader
+  // Gestion du fichier a uploader
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -198,7 +198,7 @@ const Chat = () => {
               onClick={() => setSelectedSubject(subject)}
             >
               {subject.title}
-              {/* Bouton pour inviter à côté du sujet */}
+              {/* Bouton pour inviter a cote du sujet */}
               <button className="ml-2" onClick={() => setInviteEmail('')}>
                 <FontAwesomeIcon icon={faUserPlus} className="text-gray-600 hover:text-gray-500" />
               </button>
@@ -216,16 +216,16 @@ const Chat = () => {
           <>
             <h2 className="text-lg font-light text-gray-800 p-4">
               {selectedSubject.title}
-              {/* Bouton d'invitation à côté du sujet */}
+              {/* Bouton d'invitation a cote du sujet */}
               <button onClick={() => setInviteEmail('')} className="ml-4">
                 <FontAwesomeIcon icon={faUserPlus} className="text-gray-600 hover:text-gray-500" />
               </button>
             </h2>
 
-            {/* Affichage des messages épinglés */}
+            {/* Affichage des messages epingles */}
             {pinnedMessages.length > 0 && (
               <div className="pinned-messages px-4 py-2 bg-yellow-50 rounded-lg">
-                <h3 className="font-light text-gray-800">Messages épinglés</h3>
+                <h3 className="font-light text-gray-800">Messages epingles</h3>
                 {pinnedMessages.map((msg) => (
                   <div key={msg.id} className="p-2 shadow-md text-xs mb-2">
                     <p className="font-light text-gray-700">
@@ -241,7 +241,7 @@ const Chat = () => {
                       onClick={() => unpinMessage(msg.id)}
                       className="text-red-500 hover:text-red-700 mt-2"
                     >
-                      Désépingler
+                      Desepingler
                     </button>
                   </div>
                 ))}
@@ -267,7 +267,7 @@ const Chat = () => {
                     className="text-gray-500 hover:text-gray-700 mt-2"
                     disabled={selectedSubject.pinnedMessages?.includes(msg.id)}
                   >
-                    <FontAwesomeIcon icon={faThumbtack} /> Épingler
+                    <FontAwesomeIcon icon={faThumbtack} /> Epingler
                   </button>
                 </div>
               ))}
@@ -324,7 +324,7 @@ const Chat = () => {
           </>
         ) : (
           <div className="text-center text-gray-500 p-4">
-            Sélectionnez un sujet pour commencer à discuter
+            Selectionnez un sujet pour commencer a discuter
           </div>
         )}
       </div>

@@ -19,7 +19,7 @@ const ChantierSubMenu = () => {
 
       {showSubMenu && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 w-full">
-          {/* Sous-menus adaptés pour les petits écrans */}
+          {/* Sous-menus adaptes pour les petits ecrans */}
           <div className="bg-purple-200 p-4 rounded text-center">
             <p>Offre</p>
           </div>
