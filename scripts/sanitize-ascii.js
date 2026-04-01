@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const skipDirs = new Set(['node_modules', 'build', '.git', '.firebase']);
+const skipDirs = new Set(['node_modules', 'build', '.git']);
 const textExts = new Set([
   '.js',
   '.jsx',

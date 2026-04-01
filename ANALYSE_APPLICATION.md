@@ -19,8 +19,6 @@ Contexte: memoire de travail creee pendant une analyse complete du depot pour ga
 
 - `src/index.js`: bootstrap React classique.
 - `src/App.js`: routage principal.
-- `src/firebase.js`: initialisation Firebase, Auth, Firestore, Storage, Analytics, Messaging.
-- `firebase.json`: hebergement SPA via rewrite global vers `index.html`.
 
 ## 3. Routage actuel
 
@@ -253,7 +251,6 @@ Point cle:
 
 - Le projet repose sur Create React App, qui est maintenant obsolete.
 - Le build remonte un avertissement Babel lie a CRA non maintenu.
-- `public/firebase-messaging-sw.js` utilise `process.env`, ce qui ne fonctionne pas comme dans le bundle React standard pour un fichier public servi tel quel.
 - `.env.local` est present dans le workspace; verifier s'il est ignore et non committe avant partage.
 
 ## 9. Verification effectuee
@@ -409,7 +406,6 @@ Buckets probables:
 - Verification build apres preparation Supabase: OK
 - Migration initiale de l'auth vers Supabase
 - Creation d'une couche de compatibilite `src/auth.js`
-- Creation de `src/firebaseApp.js` pour factoriser l'app Firebase sans boucle d'import
 - `Login.js` bascule vers `supabase.auth.signInWithOAuth({ provider: 'google' })`
 - Synchronisation de base de l'utilisateur authentifie vers:
   - table Supabase `users`
@@ -434,7 +430,6 @@ Buckets probables:
 
 ## 12. Fichiers les plus impactes par la migration
 
-- `src/firebase.js`
 - `src/pages/Login.js`
 - `src/pages/Chantier.js`
 - `src/pages/Acteurs.js`
@@ -451,7 +446,6 @@ Buckets probables:
 - `src/pages/Assurance.js`
 - `src/pages/Profil.js`
 - `src/pages/Chat.js`
-- `public/firebase-messaging-sw.js`
 - `package.json`
 
 ## 13. Decisions a prendre avant migration reelle
