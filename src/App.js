@@ -83,7 +83,6 @@ function PreloginShowcase() {
 
 function AprilFoolsIntro({ onComplete }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-
   const isLastMessage = currentIndex === APRIL_FOOLS_MESSAGES.length - 1;
 
   const handleContinue = () => {
@@ -99,10 +98,7 @@ function AprilFoolsIntro({ onComplete }) {
     <main className="april-fools-screen">
       <div className="april-fools-backdrop" />
       <div className="april-fools-stack" aria-live="polite">
-        <article
-          key={`${currentIndex}-${APRIL_FOOLS_MESSAGES[currentIndex]}`}
-          className={`april-fools-popup${currentIndex === 2 ? ' is-fish' : ''} is-latest`}
-        >
+        <article className={`april-fools-popup${currentIndex === 2 ? ' is-fish' : ''} is-latest`}>
           {currentIndex === 2 ? <span className="april-fools-fish" aria-hidden="true" /> : null}
           <strong>{APRIL_FOOLS_MESSAGES[currentIndex]}</strong>
           <button type="button" className="action-button april-fools-continue" onClick={handleContinue}>
@@ -118,6 +114,24 @@ function App() {
   const [user, setUser] = useState(undefined);
   const [isSessionLoaderReady, setIsSessionLoaderReady] = useState(false);
   const [isAprilFoolsDone, setIsAprilFoolsDone] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const syncViewport = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+
+    return () => {
+      window.removeEventListener('resize', syncViewport);
+    };
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -135,11 +149,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || window.innerWidth > 640) {
+    if (!isMobile) {
       setIsAprilFoolsDone(true);
       return;
     }
-  }, []);
+
+    setIsAprilFoolsDone(false);
+  }, [isMobile]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -152,7 +168,7 @@ function App() {
     );
   }
 
-  if (!isAprilFoolsDone && !user && isSessionLoaderReady) {
+  if (isMobile && !user && !isAprilFoolsDone) {
     return <AprilFoolsIntro onComplete={() => setIsAprilFoolsDone(true)} />;
   }
 
