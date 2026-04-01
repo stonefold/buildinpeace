@@ -114,24 +114,6 @@ function App() {
   const [user, setUser] = useState(undefined);
   const [isSessionLoaderReady, setIsSessionLoaderReady] = useState(false);
   const [isAprilFoolsDone, setIsAprilFoolsDone] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const syncViewport = () => {
-      setIsMobile(window.innerWidth <= 640);
-    };
-
-    syncViewport();
-    window.addEventListener('resize', syncViewport);
-
-    return () => {
-      window.removeEventListener('resize', syncViewport);
-    };
-  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -148,15 +130,6 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isMobile) {
-      setIsAprilFoolsDone(true);
-      return;
-    }
-
-    setIsAprilFoolsDone(false);
-  }, [isMobile]);
-
   if (!isSupabaseConfigured) {
     return (
       <main className="workspace-auth-screen">
@@ -168,7 +141,7 @@ function App() {
     );
   }
 
-  if (isMobile && !user && !isAprilFoolsDone) {
+  if (!isAprilFoolsDone) {
     return <AprilFoolsIntro onComplete={() => setIsAprilFoolsDone(true)} />;
   }
 
