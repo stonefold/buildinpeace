@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import WorkspaceLoader from '../components/WorkspaceLoader';
 import { Canvas as FabricCanvas, Circle as FabricCircle, FabricImage, Group as FabricGroup, Rect as FabricRect, Textbox } from 'fabric';
 import {
   faArrowLeft,
@@ -317,6 +318,7 @@ const mergePermissions = (role, customPermissions = {}) => ({
 
 function WorkspaceV2({ onSignOut }) {
   const { workspace, isLoading, error, actions } = useWorkspaceData();
+  const [isInitialLoaderReady, setIsInitialLoaderReady] = useState(false);
   demoWorkspace = workspace;
   const workspaceRole = getNormalizedRole(workspace.user.role);
   const workspacePermissions = buildPermissionsForRole(workspaceRole);
@@ -369,6 +371,16 @@ function WorkspaceV2({ onSignOut }) {
     setLocalDirectMessages([]);
   }, [workspace.user.id]);
 
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setIsInitialLoaderReady(true);
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
   const availableFriends = useMemo(() => workspace.friends ?? [], [workspace.friends]);
 
   const availableDirectMessages = useMemo(() => {
@@ -384,13 +396,13 @@ function WorkspaceV2({ onSignOut }) {
     [notifications]
   );
 
-  const startupScreen = isLoading ?(
-    <main className="workspace-auth-screen">
-      <section className="workspace-auth-card">
-        <h1>Build In Peace</h1>
-        <p>Chargement du workspace...</p>
-      </section>
-    </main>
+  const startupScreen = isLoading || !isInitialLoaderReady ?(
+    <WorkspaceLoader
+      eyebrow="Workspace"
+      title="Build In Peace"
+      message="Chargement du workspace..."
+      detail="Preparation des chantiers, notifications, documents et conversations en temps reel."
+    />
   ) : error ?(
     <main className="workspace-auth-screen">
       <section className="workspace-auth-card">

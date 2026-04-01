@@ -3,14 +3,18 @@
 }
 
 .workspace-auth-screen {
+  position: relative;
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
   background: linear-gradient(135deg, #f4f6f7 0%, #e8ecef 100%);
+  overflow: hidden;
 }
 
 .workspace-auth-card {
+  position: relative;
+  z-index: 2;
   width: min(460px, 100%);
   padding: 32px;
   border-radius: 24px;
@@ -18,6 +22,898 @@
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
   display: grid;
   gap: 16px;
+}
+
+.workspace-login-badge {
+  justify-self: start;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(11, 94, 215, 0.08);
+  color: #0b5ed7;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-login-screen {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.16), transparent 34%),
+    linear-gradient(145deg, #edf4f8 0%, #dfe9ef 48%, #eef4f7 100%);
+}
+
+.workspace-login-card {
+  width: min(460px, calc(100% - 32px));
+  justify-self: center;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(18px);
+  text-align: center;
+}
+
+.workspace-login-hero {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+}
+
+.workspace-login-logo-shell {
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgba(11, 94, 215, 0.12), rgba(56, 189, 248, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.workspace-login-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 22px;
+}
+
+.workspace-login-copy {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.workspace-login-copy h1 {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.workspace-login-copy p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.6;
+  max-width: 34ch;
+}
+
+.auth-boot-screen {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.14), transparent 34%),
+    linear-gradient(145deg, #edf4f8 0%, #dce7ee 52%, #eff4f7 100%);
+}
+
+.april-fools-screen {
+  position: relative;
+  min-height: 100vh;
+  padding: 20px 14px;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.2), transparent 34%),
+    linear-gradient(145deg, #edf4f8 0%, #dce7ee 52%, #eff4f7 100%);
+}
+
+.april-fools-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+}
+
+.april-fools-stack {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 360px);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.april-fools-popup {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1rem 1rem 1rem 0.95rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(18px);
+  animation: aprilFoolsPopupIn 420ms ease-out both;
+}
+
+.april-fools-popup strong {
+  color: #0f172a;
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.april-fools-continue {
+  width: 100%;
+  margin-top: 0.4rem;
+  justify-content: center;
+}
+
+.april-fools-popup.is-latest {
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 22px 54px rgba(37, 99, 235, 0.16);
+}
+
+.april-fools-popup.is-fish {
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(255, 255, 255, 0.96));
+}
+
+.april-fools-fish {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 999px 60% 60% 999px;
+  background: linear-gradient(135deg, #0b5ed7 0%, #38bdf8 100%);
+  box-shadow: inset -10px 0 0 rgba(255, 255, 255, 0.18);
+}
+
+.april-fools-fish::before {
+  content: '';
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #0b5ed7 0%, #38bdf8 100%);
+  transform: translateY(-50%) rotate(45deg);
+  border-radius: 3px;
+}
+
+.april-fools-fish::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.prelogin-scene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.prelogin-stage-glow {
+  position: absolute;
+  width: 34vw;
+  height: 34vw;
+  min-width: 260px;
+  min-height: 260px;
+  border-radius: 999px;
+  filter: blur(12px);
+  opacity: 0.65;
+}
+
+.prelogin-stage-glow-left {
+  top: 8%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.24), rgba(56, 189, 248, 0));
+}
+
+.prelogin-stage-glow-right {
+  right: 6%;
+  bottom: 12%;
+  background: radial-gradient(circle, rgba(14, 116, 144, 0.22), rgba(14, 116, 144, 0));
+}
+
+.prelogin-module {
+  position: absolute;
+  z-index: 1;
+  padding: 1rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  box-shadow: 0 22px 54px rgba(15, 23, 42, 0.09);
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: translateY(18px) scale(0.97);
+  animation: preloginAppear 6.4s ease-in-out infinite;
+}
+
+.prelogin-module-messages {
+  left: clamp(18px, 4vw, 42px);
+  top: 10%;
+  width: min(360px, calc(50vw - 130px));
+  animation-name: preloginAppear, preloginMoveMessages;
+  animation-duration: 6.4s, 24s;
+  animation-iteration-count: infinite, infinite;
+  animation-timing-function: ease-in-out, ease-in-out;
+}
+
+.prelogin-module-documents {
+  right: clamp(18px, 4vw, 42px);
+  top: 18%;
+  width: min(320px, calc(50vw - 150px));
+  animation-name: preloginAppear, preloginMoveDocuments;
+  animation-duration: 6.4s, 26s;
+  animation-iteration-count: infinite, infinite;
+  animation-timing-function: ease-in-out, ease-in-out;
+}
+
+.prelogin-module-plan {
+  left: 50%;
+  bottom: 6%;
+  width: 260px;
+  transform: translateX(-50%);
+  transform-origin: center;
+  animation-name: preloginAppearCenter, preloginMovePlan;
+  animation-duration: 6.4s, 28s;
+  animation-iteration-count: infinite, infinite;
+  animation-timing-function: ease-in-out, ease-in-out;
+}
+
+.prelogin-module-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.prelogin-module-topline span {
+  color: #64748b;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prelogin-module-topline strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+}
+
+.prelogin-message-row,
+.prelogin-doc-row {
+  padding: 0.88rem 0.9rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.98));
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 0.22rem;
+  margin-bottom: 0.68rem;
+}
+
+.prelogin-message-row:last-child,
+.prelogin-doc-row:last-child {
+  margin-bottom: 0;
+}
+
+.prelogin-message-row.is-own {
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.92), rgba(239, 246, 255, 0.96));
+}
+
+.prelogin-message-row strong {
+  display: block;
+  margin-bottom: 0.12rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.prelogin-message-row p {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.prelogin-doc-row strong {
+  display: block;
+  color: #0f172a;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.prelogin-doc-row small {
+  color: #475569;
+  line-height: 1.4;
+}
+
+.prelogin-plan-canvas {
+  position: relative;
+  height: 150px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.prelogin-plan-line {
+  position: absolute;
+  background: rgba(51, 65, 85, 0.22);
+}
+
+.prelogin-plan-line.line-a {
+  top: 24px;
+  left: 20px;
+  width: 130px;
+  height: 2px;
+}
+
+.prelogin-plan-line.line-b {
+  top: 24px;
+  left: 20px;
+  width: 2px;
+  height: 98px;
+}
+
+.prelogin-plan-line.line-c {
+  bottom: 26px;
+  left: 20px;
+  width: 150px;
+  height: 2px;
+}
+
+.prelogin-plan-pin {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #0b5ed7;
+  box-shadow: 0 0 0 6px rgba(11, 94, 215, 0.12);
+}
+
+.prelogin-plan-pin.pin-a {
+  top: 30px;
+  left: 128px;
+}
+
+.prelogin-plan-pin.pin-b {
+  top: 86px;
+  left: 48px;
+}
+
+.prelogin-plan-pin.pin-c {
+  bottom: 32px;
+  right: 36px;
+}
+
+.workspace-loader-screen {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.18), transparent 36%),
+    linear-gradient(145deg, #eef4f8 0%, #dde7ee 48%, #edf2f7 100%);
+}
+
+.workspace-loader-card {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 40px;
+  gap: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 250, 252, 0.94) 100%);
+  backdrop-filter: blur(18px);
+}
+
+.workspace-loader-card::before {
+  content: '';
+  position: absolute;
+  inset: -20% auto auto -10%;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 72%);
+  pointer-events: none;
+}
+
+.workspace-loader-visual {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.workspace-loader-core {
+  position: relative;
+  z-index: 3;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #0b5ed7 0%, #0b3b88 100%);
+  box-shadow: 0 20px 45px rgba(11, 94, 215, 0.28);
+}
+
+.workspace-loader-logo {
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 20px;
+}
+
+.workspace-loader-orbit {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.workspace-loader-orbit-outer {
+  inset: 0;
+  animation: workspaceLoaderSpin 8s linear infinite;
+}
+
+.workspace-loader-orbit-inner {
+  inset: 18px;
+  border-style: dashed;
+  animation: workspaceLoaderSpinReverse 5s linear infinite;
+}
+
+.workspace-loader-orbit-outer::before,
+.workspace-loader-orbit-inner::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #0b5ed7;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 8px rgba(11, 94, 215, 0.12);
+}
+
+.workspace-loader-pulse {
+  position: absolute;
+  inset: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 116, 144, 0.14);
+  animation: workspaceLoaderPulse 2.6s ease-out infinite;
+}
+
+.workspace-loader-pulse-two {
+  animation-delay: 1.3s;
+}
+
+.workspace-loader-copy {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.workspace-loader-eyebrow {
+  justify-self: center;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(11, 94, 215, 0.08);
+  color: #0b5ed7;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-loader-copy h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+}
+
+.workspace-loader-copy p {
+  margin: 0;
+  font-size: 1.02rem;
+  color: #334155;
+}
+
+.workspace-loader-copy small {
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.workspace-loader-status {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.workspace-loader-bar {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.workspace-loader-bar-fill {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0b5ed7 0%, #38bdf8 100%);
+  animation: workspaceLoaderSlide 1.9s ease-in-out infinite;
+}
+
+.workspace-loader-steps {
+  display: flex;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.workspace-loader-steps span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(11, 94, 215, 0.24);
+  animation: workspaceLoaderBlink 1.2s ease-in-out infinite;
+}
+
+.workspace-loader-steps span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.workspace-loader-steps span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes workspaceLoaderSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes workspaceLoaderSpinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes workspaceLoaderPulse {
+  0% {
+    transform: scale(0.82);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.42;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+}
+
+@keyframes workspaceLoaderSlide {
+  0% {
+    transform: translateX(-130%);
+  }
+  50% {
+    transform: translateX(95%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes workspaceLoaderBlink {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes preloginAppear {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  14%,
+  66% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  82% {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.01);
+  }
+}
+
+@keyframes preloginAppearCenter {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px) scale(0.97);
+  }
+  14%,
+  66% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  82% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px) scale(1.01);
+  }
+}
+
+@keyframes preloginMoveMessages {
+  0%,
+  100% {
+    left: clamp(18px, 4vw, 42px);
+    top: 10%;
+  }
+  20% {
+    left: clamp(22px, 6vw, 86px);
+    top: 26%;
+  }
+  40% {
+    left: clamp(18px, 7vw, 96px);
+    top: 58%;
+  }
+  60% {
+    left: clamp(14px, 4vw, 44px);
+    top: 68%;
+  }
+  80% {
+    left: clamp(20px, 6vw, 72px);
+    top: 34%;
+  }
+}
+
+@keyframes preloginMoveDocuments {
+  0%,
+  100% {
+    right: clamp(18px, 4vw, 42px);
+    top: 18%;
+  }
+  20% {
+    right: clamp(24px, 6vw, 84px);
+    top: 8%;
+  }
+  40% {
+    right: clamp(18px, 5vw, 58px);
+    top: 56%;
+  }
+  60% {
+    right: clamp(14px, 3vw, 28px);
+    top: 66%;
+  }
+  80% {
+    right: clamp(24px, 7vw, 88px);
+    top: 30%;
+  }
+}
+
+@keyframes preloginMovePlan {
+  0%,
+  100% {
+    bottom: 6%;
+    left: 50%;
+  }
+  20% {
+    bottom: 8%;
+    left: 24%;
+  }
+  40% {
+    bottom: 8%;
+    left: 76%;
+  }
+  60% {
+    bottom: 8%;
+    left: 64%;
+  }
+  80% {
+    bottom: 12%;
+    left: 36%;
+  }
+}
+
+@keyframes aprilFoolsPopupIn {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 1200px) {
+  .workspace-login-screen {
+    place-items: center;
+  }
+
+  .workspace-login-card {
+    justify-self: center;
+    margin-left: 0;
+    width: min(480px, calc(100% - 28px));
+  }
+
+  .prelogin-module-messages {
+    top: 6%;
+    left: 20px;
+    width: min(320px, calc(100vw - 120px));
+  }
+
+  .prelogin-module-documents {
+    top: auto;
+    bottom: 8%;
+    right: 20px;
+    width: min(300px, calc(100vw - 120px));
+  }
+
+  .prelogin-module-plan,
+  .prelogin-popup {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace-auth-screen.workspace-login-screen {
+    padding: 16px;
+  }
+
+  .workspace-login-card {
+    width: min(100%, calc(100vw - 24px));
+    padding: 24px 20px;
+    gap: 14px;
+  }
+
+  .workspace-login-logo-shell {
+    width: 76px;
+    height: 76px;
+    border-radius: 22px;
+  }
+
+  .workspace-login-logo {
+    width: 62px;
+    height: 62px;
+    border-radius: 18px;
+  }
+
+  .workspace-login-copy h1 {
+    font-size: 1.9rem;
+  }
+
+  .workspace-login-copy p {
+    max-width: 28ch;
+    font-size: 0.95rem;
+  }
+
+  .prelogin-module-messages {
+    top: 12px;
+    left: 12px;
+    width: min(250px, calc(100vw - 110px));
+  }
+
+  .prelogin-module-documents {
+    display: none;
+  }
+
+  .prelogin-module {
+    padding: 0.82rem;
+    border-radius: 20px;
+  }
+
+  .prelogin-module-topline {
+    margin-bottom: 0.6rem;
+  }
+
+  .prelogin-module-topline span,
+  .prelogin-module-topline strong,
+  .prelogin-message-row strong,
+  .prelogin-doc-row small {
+    font-size: 0.72rem;
+  }
+
+  .prelogin-message-row,
+  .prelogin-doc-row {
+    padding: 0.72rem 0.74rem;
+    border-radius: 14px;
+    margin-bottom: 0.5rem;
+  }
+
+  .prelogin-message-row p {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .prelogin-stage-glow-left {
+    top: 2%;
+    left: -18%;
+  }
+
+  .prelogin-stage-glow-right {
+    right: -12%;
+    bottom: 4%;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-login-screen {
+    padding: 18px 14px;
+  }
+
+  .workspace-login-card {
+    width: min(100%, calc(100vw - 20px));
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+
+  .workspace-login-copy {
+    gap: 0.65rem;
+  }
+
+  .workspace-login-copy h1 {
+    font-size: 1.75rem;
+  }
+
+  .workspace-login-copy p {
+    max-width: 24ch;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .workspace-login-badge {
+    justify-self: center;
+    font-size: 0.68rem;
+  }
+
+  .prelogin-module,
+  .prelogin-module-messages,
+  .prelogin-module-documents,
+  .prelogin-module-plan {
+    display: none;
+  }
+
+  .prelogin-stage-glow {
+    opacity: 0.5;
+  }
 }
 .invitation-panel {
   margin-bottom: 1rem;
