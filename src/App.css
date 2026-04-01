@@ -26,7 +26,25 @@
 .workspace-top-actions {
   display: flex;
   justify-content: flex-end;
+  width: 100%;
+  min-width: 0;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
   margin-bottom: 1rem;
+}
+
+.workspace-top-action-button,
+.workspace-modal-actions,
+.notification-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.workspace-top-actions > button {
+  flex: 0 1 auto;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .invitation-list {
@@ -643,8 +661,15 @@
     justify-content: stretch;
   }
 
-  .friend-invite-actions button {
-    flex: 1 1 0;
+.friend-invite-actions button {
+  flex: 1 1 0;
+}
+}
+
+@media (max-width: 767px) {
+  .friend-card-actions,
+  .friend-card-body {
+    display: none !important;
   }
 }
 
@@ -850,6 +875,23 @@
 
 .invitation-center-modal {
   width: min(760px, calc(100vw - 32px));
+}
+
+.notification-center-modal {
+  width: min(860px, calc(100vw - 32px));
+}
+
+.notification-row {
+  justify-content: space-between;
+}
+
+.notification-row.is-unread {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.88), rgba(255, 255, 255, 0.98));
+}
+
+.notification-row.is-read {
+  opacity: 0.82;
 }
 
 .invitation-row-compact {

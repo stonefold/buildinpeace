@@ -26,6 +26,7 @@ export const emptyWorkspace = {
   directMessages: [],
   projects: [],
   pendingInvitations: [],
+  notifications: [],
   organization: null,
 };
 

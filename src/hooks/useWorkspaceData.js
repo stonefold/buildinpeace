@@ -10,9 +10,13 @@ import {
   createProjectTaskRecord,
   deleteTaskRecord,
   ensureDirectConversationRecord,
+  inviteFriendRecord,
   inviteProjectMemberRecord,
   loadWorkspace,
+  markNotificationsReadRecord,
   removeProjectMemberRecord,
+  removeFriendRecord,
+  respondToFriendInvitationRecord,
   respondToProjectInvitationRecord,
   savePersonalTaskRecord,
   saveProfileRecord,
@@ -92,6 +96,9 @@ export const useWorkspaceData = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => reload({ silent: true }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => reload({ silent: true }))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, () => reload({ silent: true }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => reload({ silent: true }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => reload({ silent: true }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_events' }, () => reload({ silent: true }))
       .subscribe();
 
     return () => {
@@ -134,6 +141,27 @@ export const useWorkspaceData = () => {
       inviteProjectMember(payload) {
         return runMutation(async () => {
           await inviteProjectMemberRecord(payload);
+          await reload({ silent: true });
+          return true;
+        });
+      },
+      inviteFriend(payload) {
+        return runMutation(async () => {
+          await inviteFriendRecord(payload);
+          await reload({ silent: true });
+          return true;
+        });
+      },
+      respondToFriendInvitation(payload) {
+        return runMutation(async () => {
+          await respondToFriendInvitationRecord(payload);
+          await reload({ silent: true });
+          return true;
+        });
+      },
+      removeFriend(payload) {
+        return runMutation(async () => {
+          await removeFriendRecord(payload);
           await reload({ silent: true });
           return true;
         });
@@ -260,6 +288,13 @@ export const useWorkspaceData = () => {
       respondToInvitation(payload) {
         return runMutation(async () => {
           await respondToProjectInvitationRecord(payload);
+          await reload({ silent: true });
+          return true;
+        });
+      },
+      markNotificationsRead(notificationIds) {
+        return runMutation(async () => {
+          await markNotificationsReadRecord(notificationIds);
           await reload({ silent: true });
           return true;
         });

@@ -68,6 +68,63 @@ const ensureClient = () => {
 
 const unique = (items) => [...new Set(items.filter(Boolean))];
 const formatDate = (value) => (value ?new Date(value).toISOString().slice(0, 10) : '');
+const formatDateTime = (value) =>
+  value
+    ?new Date(value).toLocaleString('fr-BE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '';
+
+const fieldLabelMap = {
+  archived_at: 'archivage',
+  body: 'message',
+  budget_amount: 'budget',
+  category: 'categorie',
+  client_name: 'client',
+  company_name: 'societe',
+  description: 'description',
+  document_date: 'date',
+  due_date: 'echeance',
+  end_date: 'date de fin',
+  file_name: 'fichier',
+  permissions: 'permissions',
+  priority: 'priorite',
+  rendered_image_url: 'plan',
+  role: 'role',
+  section_id: 'section',
+  site_label: 'site',
+  specialty: 'specialite',
+  start_date: 'date de debut',
+  status: 'statut',
+  title: 'titre',
+  version_label: 'version',
+};
+
+const getFieldLabel = (field) => fieldLabelMap[field] || field.replace(/_/g, ' ');
+const serializeComparable = (value) => JSON.stringify(value ?? null);
+const pickDefined = (value) => (typeof value === 'undefined' ?null : value);
+
+const diffFields = (before = {}, after = {}) => {
+  const keys = unique([...Object.keys(before), ...Object.keys(after)]);
+  return keys
+    .filter((key) => serializeComparable(before[key]) !== serializeComparable(after[key]))
+    .map((key) => ({
+      field: key,
+      before: pickDefined(before[key]),
+      after: pickDefined(after[key]),
+      label: getFieldLabel(key),
+    }));
+};
+
+const summarizeChanges = (changes = []) => {
+  const labels = unique(changes.map((change) => change.label).filter(Boolean)).slice(0, 3);
+  if (!labels.length) return '';
+  return labels.join(', ');
+};
 
 const formatBudget = (amount, currency = 'EUR') => {
   if (amount === null || typeof amount === 'undefined') return 'A definir';
@@ -169,8 +226,29 @@ const fetchProfilesByIds = async (userIds) => {
   if (!ids.length) return [];
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, company_name, email, avatar_url')
+    .select('id, display_name, company_name, email, avatar_url, availability_status, specialty, city')
     .in('id', ids);
+  if (error) throw error;
+  return data ?? [];
+};
+
+const fetchProfileByEmail = async (email) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, email, company_name, specialty, availability_status, city, avatar_url')
+    .ilike('email', normalizedEmail)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+};
+
+const fetchFriendships = async (userId) => {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('*')
+    .or(`requester_user_id.eq.${userId},addressee_user_id.eq.${userId}`)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
 };
@@ -307,6 +385,125 @@ const fetchProjectInvitations = async (email) => {
   return data ?? [];
 };
 
+const fetchNotifications = async (userId) => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data ?? [];
+};
+
+const mergeFriendCollections = (...collections) => {
+  const map = new Map();
+
+  collections.flat().forEach((friend) => {
+    if (!friend) return;
+    const key = friend.userId || friend.email || friend.id;
+    if (!key) return;
+    map.set(key, { ...(map.get(key) ?? {}), ...friend });
+  });
+
+  return [...map.values()];
+};
+
+const fetchProjectContext = async (projectId) => {
+  if (!projectId) return null;
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, organization_id, client_name, site_label, budget_amount, start_date, end_date')
+    .eq('id', projectId)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const fetchProjectMemberUserIds = async (projectId, { includeInvited = false } = {}) => {
+  if (!projectId) return [];
+  let query = supabase.from('project_members').select('user_id').eq('project_id', projectId);
+  if (!includeInvited) {
+    query = query.eq('status', 'active');
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return unique((data ?? []).map((item) => item.user_id));
+};
+
+const createNotifications = async (items, actorId) => {
+  const rows = (items ?? [])
+    .filter((item) => item?.userId)
+    .map((item) => ({
+      user_id: item.userId,
+      actor_id: actorId,
+      organization_id: item.organizationId || null,
+      project_id: item.projectId || null,
+      title: item.title,
+      body: item.body || null,
+      is_read: false,
+      event_key: item.eventKey || 'workspace.notification',
+      entity_type: item.entityType || 'workspace',
+      entity_id: item.entityId ? String(item.entityId) : null,
+      metadata: item.metadata || {},
+    }));
+
+  const uniqueRows = [...new Map(rows.map((row) => [`${row.user_id}:${row.event_key}:${row.entity_id || row.title}`, row])).values()];
+  if (!uniqueRows.length) return;
+
+  const { error } = await supabase.from('notifications').insert(uniqueRows);
+  if (error) throw error;
+};
+
+const recordWorkspaceEvent = async ({
+  actorId,
+  organizationId = null,
+  projectId = null,
+  label,
+  payload = {},
+  tone = 'info',
+  eventKey = 'workspace.activity',
+  entityType = 'workspace',
+  entityId = null,
+  notifications = [],
+}) => {
+  if (!actorId) return;
+
+  const eventPayload = {
+    ...payload,
+    eventKey,
+    entityType,
+    entityId: entityId ? String(entityId) : null,
+  };
+
+  const { error } = await supabase.from('activity_events').insert({
+    organization_id: organizationId,
+    project_id: projectId,
+    actor_id: actorId,
+    label,
+    payload: eventPayload,
+    tone,
+    event_key: eventKey,
+    entity_type: entityType,
+    entity_id: entityId ? String(entityId) : null,
+  });
+  if (error) throw error;
+
+  await createNotifications(
+    notifications
+      .filter((item) => item?.userId && item.userId !== actorId)
+      .map((item) => ({
+        ...item,
+        organizationId: item.organizationId || organizationId,
+        projectId: item.projectId || projectId,
+        eventKey: item.eventKey || eventKey,
+        entityType: item.entityType || entityType,
+        entityId: item.entityId || entityId,
+      })),
+    actorId
+  );
+};
+
 const mapMessageToUi = async (message, currentUserId) => {
   let attachment = null;
   if (message.attachment_storage_path) {
@@ -324,6 +521,7 @@ const mapMessageToUi = async (message, currentUserId) => {
     author: message.sender_name || 'Utilisateur',
     text: message.body || (attachment ?`${attachment.kind === 'image' ? 'Photo' : 'Fichier'} envoye` : ''),
     time: new Date(message.created_at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }),
+    timestamp: message.created_at,
     own: message.sender_id === currentUserId,
     status: 'Envoye',
     attachment,
@@ -349,7 +547,10 @@ const mapWorkspace = async (payload) => {
     conversationMembers,
     messages,
     activity,
+    notifications,
     invitations,
+    friendships,
+    profilesById = {},
   } = payload;
 
   const organizationMembership = memberships[0] ?? null;
@@ -516,19 +717,18 @@ const mapWorkspace = async (payload) => {
       const memberList = membersByConversation[conversation.id] ?? [];
       const thread = messagesByConversation[conversation.id] ?? [];
       const lastMessage = thread[thread.length - 1];
+      const otherParticipantName = memberList
+        .map((member) => member.profiles?.display_name)
+        .filter((name) => name && name !== currentUserName)
+        .join(', ');
 
       return {
         id: conversation.id,
-        name:
-          conversation.title ||
-          memberList
-            .map((member) => member.profiles?.display_name)
-            .filter((name) => name && name !== currentUserName)
-            .join(', ') ||
-          'Discussion privee',
+        name: otherParticipantName || conversation.title || 'Discussion privee',
         participants: memberList.length,
         unread: 0,
         preview: lastMessage?.text || 'Aucun message',
+        updatedAt: lastMessage?.timestamp || conversation.updated_at || conversation.created_at || null,
         messages: thread,
       };
     });
@@ -595,6 +795,42 @@ const mapWorkspace = async (payload) => {
     )
   ).map((item) => JSON.parse(item));
 
+  const acceptedFriendships = friendships
+    .filter((friendship) => friendship.status === 'accepted')
+    .map((friendship) => {
+      const isRequester = friendship.requester_user_id === currentUserId;
+      const otherUserId = isRequester ? friendship.addressee_user_id : friendship.requester_user_id;
+      const otherProfile = profilesById[otherUserId] ?? null;
+
+      return {
+        id: otherUserId || friendship.id,
+        friendshipId: friendship.id,
+        userId: otherUserId,
+        name: otherProfile?.display_name || otherProfile?.email || friendship.requester_name || 'Contact',
+        trade: otherProfile?.specialty || friendship.requester_trade || 'Partenaire',
+        status: otherProfile?.availability_status || 'En ligne',
+        email: otherProfile?.email || friendship.requester_email || '',
+        company: otherProfile?.company_name || '',
+        city: otherProfile?.city || '',
+        avatarUrl: otherProfile?.avatar_url || '',
+      };
+    });
+
+  const friendInvitations = friendships
+    .filter((friendship) => friendship.status === 'pending' && friendship.addressee_user_id === currentUserId)
+    .map((friendship) => {
+      const requesterProfile = profilesById[friendship.requester_user_id] ?? null;
+      return {
+        id: friendship.id,
+        userId: friendship.requester_user_id,
+        name: requesterProfile?.display_name || friendship.requester_name || friendship.requester_email || 'Contact',
+        trade: requesterProfile?.specialty || friendship.requester_trade || 'Partenaire',
+        email: requesterProfile?.email || friendship.requester_email || '',
+        createdAt: formatDate(friendship.created_at),
+        status: friendship.status,
+      };
+    });
+
   const messageCount = Object.values(messagesByConversation).reduce((total, thread) => total + thread.length, 0);
   const normalizeStatus = (value) =>
     (value || '')
@@ -622,6 +858,21 @@ const mapWorkspace = async (payload) => {
     status: invitation.status,
     createdAt: formatDate(invitation.created_at),
     respondedAt: formatDate(invitation.responded_at),
+  }));
+  const notificationItems = notifications.map((notification) => ({
+    id: notification.id,
+    title: notification.title,
+    body: notification.body || '',
+    projectId: notification.project_id || null,
+    organizationId: notification.organization_id || null,
+    isRead: Boolean(notification.is_read),
+    readAt: notification.read_at || null,
+    eventKey: notification.event_key || 'workspace.notification',
+    entityType: notification.entity_type || 'workspace',
+    entityId: notification.entity_id || null,
+    createdAt: notification.created_at,
+    createdLabel: formatDateTime(notification.created_at),
+    metadata: notification.metadata || {},
   }));
   const activeProjects = projectList.filter((project) => !project.archived);
 
@@ -651,10 +902,12 @@ const mapWorkspace = async (payload) => {
       { label: 'Messages non lus', value: messageCount, detail: 'Conversations actives' },
     ],
     personalTasks,
-    friends,
+    friends: mergeFriendCollections(friends, acceptedFriendships),
+    friendInvitations,
     directMessages,
     projects: projectList,
     pendingInvitations,
+    notifications: notificationItems,
   };
 };
 
@@ -669,9 +922,17 @@ export const loadWorkspace = async () => {
   const profile = await fetchProfile(user.id);
   const memberships = await fetchOrganizationMemberships(user.id);
   const invitations = await fetchProjectInvitations(profile.email || user.email || '');
+  const friendships = await fetchFriendships(user.id);
+  const notifications = await fetchNotifications(user.id);
   const organizationIds = memberships.map((membership) => membership.organization_id);
 
   if (!organizationIds.length) {
+    const friendshipUserIds = unique(
+      friendships.flatMap((friendship) => [friendship.requester_user_id, friendship.addressee_user_id]).filter((id) => id && id !== user.id)
+    );
+    const friendshipProfiles = await fetchProfilesByIds(friendshipUserIds);
+    const friendshipProfilesById = Object.fromEntries(friendshipProfiles.map((item) => [item.id, item]));
+
     return {
       workspace: {
         ...emptyWorkspace,
@@ -681,6 +942,39 @@ export const loadWorkspace = async () => {
           name: profile.display_name || profile.email || 'Utilisateur',
           email: profile.email || '',
         },
+        friends: friendships
+          .filter((friendship) => friendship.status === 'accepted')
+          .map((friendship) => {
+            const otherUserId = friendship.requester_user_id === user.id ? friendship.addressee_user_id : friendship.requester_user_id;
+            const otherProfile = friendshipProfilesById[otherUserId] ?? null;
+            return {
+              id: otherUserId || friendship.id,
+              friendshipId: friendship.id,
+              userId: otherUserId,
+              name: otherProfile?.display_name || otherProfile?.email || 'Contact',
+              trade: otherProfile?.specialty || 'Partenaire',
+              status: otherProfile?.availability_status || 'En ligne',
+              email: otherProfile?.email || '',
+              company: otherProfile?.company_name || '',
+              city: otherProfile?.city || '',
+              avatarUrl: otherProfile?.avatar_url || '',
+            };
+          }),
+        friendInvitations: friendships
+          .filter((friendship) => friendship.status === 'pending' && friendship.addressee_user_id === user.id)
+          .map((friendship) => ({
+            id: friendship.id,
+            userId: friendship.requester_user_id,
+            name:
+              friendshipProfilesById[friendship.requester_user_id]?.display_name ||
+              friendship.requester_name ||
+              friendship.requester_email ||
+              'Contact',
+            trade: friendshipProfilesById[friendship.requester_user_id]?.specialty || friendship.requester_trade || 'Partenaire',
+            email: friendshipProfilesById[friendship.requester_user_id]?.email || friendship.requester_email || '',
+            createdAt: formatDate(friendship.created_at),
+            status: friendship.status,
+          })),
         pendingInvitations: invitations.map((invitation) => ({
           id: invitation.id,
           projectId: invitation.project_id,
@@ -691,6 +985,21 @@ export const loadWorkspace = async () => {
           status: invitation.status,
           createdAt: formatDate(invitation.created_at),
           respondedAt: formatDate(invitation.responded_at),
+        })),
+        notifications: notifications.map((notification) => ({
+          id: notification.id,
+          title: notification.title,
+          body: notification.body || '',
+          projectId: notification.project_id || null,
+          organizationId: notification.organization_id || null,
+          isRead: Boolean(notification.is_read),
+          readAt: notification.read_at || null,
+          eventKey: notification.event_key || 'workspace.notification',
+          entityType: notification.entity_type || 'workspace',
+          entityId: notification.entity_id || null,
+          createdAt: notification.created_at,
+          createdLabel: formatDateTime(notification.created_at),
+          metadata: notification.metadata || {},
         })),
       },
       user,
@@ -715,6 +1024,8 @@ export const loadWorkspace = async () => {
     ...projectMembers.map((item) => item.user_id),
     ...taskAssignees.map((item) => item.user_id),
     ...conversationsData.members.map((item) => item.user_id),
+    ...friendships.map((item) => item.requester_user_id),
+    ...friendships.map((item) => item.addressee_user_id),
   ];
   const relatedProfiles = await fetchProfilesByIds(relatedProfileIds);
   const profilesById = Object.fromEntries(relatedProfiles.map((item) => [item.id, item]));
@@ -750,7 +1061,10 @@ export const loadWorkspace = async () => {
       conversationMembers: hydratedConversationMembers,
       messages: conversationsData.messages,
       activity,
+      notifications,
       invitations,
+      friendships,
+      profilesById,
     }),
     user,
   };
@@ -765,21 +1079,23 @@ const getPrimaryOrganizationContext = async () => {
   return { organizationId, user };
 };
 
-const logActivity = async (projectId, label, payload = {}) => {
-  const user = await getCurrentUser();
-  if (!user || !projectId) return;
-  await supabase.from('activity_events').insert({
-    project_id: projectId,
-    actor_id: user.id,
-    label,
-    payload,
-    tone: 'info',
-  });
+export const markNotificationsReadRecord = async (notificationIds = []) => {
+  const ids = unique(notificationIds);
+  if (!ids.length) return;
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('is_read', false);
+  if (error) throw error;
 };
 
 export const saveProfileRecord = async (profile, avatarFile = null) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connecte.');
+  const memberships = await fetchOrganizationMemberships(user.id);
+  const organizationId = memberships[0]?.organization_id || null;
+  const existingProfile = await fetchProfile(user.id);
 
   let avatar = null;
   if (avatarFile) {
@@ -787,6 +1103,7 @@ export const saveProfileRecord = async (profile, avatarFile = null) => {
   }
 
   const payload = {
+    user_id: user.id,
     id: user.id,
     email: profile.email || user.email,
     display_name: profile.name,
@@ -798,7 +1115,6 @@ export const saveProfileRecord = async (profile, avatarFile = null) => {
     specialty: profile.specialty,
     availability_label: profile.availability,
     service_area: profile.zone,
-    website: profile.website,
   };
 
   if (avatar?.signedUrl) {
@@ -808,10 +1124,38 @@ export const saveProfileRecord = async (profile, avatarFile = null) => {
 
   const { error } = await supabase.from('profiles').upsert(payload);
   if (error) throw error;
+
+  const changes = diffFields(
+    {
+      display_name: existingProfile?.display_name,
+      email: existingProfile?.email,
+      company_name: existingProfile?.company_name,
+      phone: existingProfile?.phone,
+      city: existingProfile?.city,
+      availability_status: existingProfile?.availability_status,
+      specialty: existingProfile?.specialty,
+      service_area: existingProfile?.service_area,
+    },
+    payload
+  );
+
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId,
+    label: 'Profil mis a jour',
+    eventKey: 'profile.updated',
+    entityType: 'profile',
+    entityId: user.id,
+    payload: {
+      profileName: payload.display_name || payload.email || 'Utilisateur',
+      changes,
+    },
+  });
 };
 
 export const saveProjectRecord = async ({ projectForm, participants, editingProjectId, currentUserProfile }) => {
   const { organizationId, user } = await getPrimaryOrganizationContext();
+  const existingProject = editingProjectId ?await fetchProjectContext(editingProjectId) : null;
 
   const projectPayload = {
     organization_id: organizationId,
@@ -890,7 +1234,46 @@ export const saveProjectRecord = async ({ projectForm, participants, editingProj
     }
   }
 
-  await logActivity(projectId, editingProjectId ? 'Chantier mis a jour' : 'Chantier cree');
+  const memberUserIds = await fetchProjectMemberUserIds(projectId, { includeInvited: false });
+  const changes = editingProjectId
+    ?diffFields(
+      {
+        name: existingProject?.name,
+        client_name: existingProject?.client_name,
+        site_label: existingProject?.site_label,
+        budget_amount: existingProject?.budget_amount,
+        start_date: existingProject?.start_date,
+        end_date: existingProject?.end_date,
+      },
+      projectPayload
+    )
+    : [];
+
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId,
+    projectId,
+    label: editingProjectId ? 'Chantier mis a jour' : 'Chantier cree',
+    eventKey: editingProjectId ? 'project.updated' : 'project.created',
+    entityType: 'project',
+    entityId: projectId,
+    payload: {
+      projectName: projectPayload.name,
+      participantCount: memberUserIds.length,
+      changes,
+    },
+    notifications: memberUserIds.map((memberUserId) => ({
+      userId: memberUserId,
+      title: editingProjectId ? `Chantier mis a jour: ${projectPayload.name}` : `Nouveau chantier: ${projectPayload.name}`,
+      body: editingProjectId
+        ?`Modifications detectees: ${summarizeChanges(changes) || 'mise a jour generale'}.`
+        : 'Le chantier vient d etre cree et partage avec vous.',
+      metadata: {
+        projectName: projectPayload.name,
+        changes,
+      },
+    })),
+  });
   return projectId;
 };
 
@@ -898,8 +1281,13 @@ export const inviteProjectMemberRecord = async ({ projectId, email, role }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connecte.');
   const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-  const { data: projectRow, error: projectError } = await supabase.from('projects').select('name').eq('id', projectId).single();
+  const { data: projectRow, error: projectError } = await supabase
+    .from('projects')
+    .select('name, organization_id')
+    .eq('id', projectId)
+    .single();
   if (projectError) throw projectError;
+  const invitedProfile = await fetchProfileByEmail(email);
 
   const { error: memberError } = await supabase.from('project_members').upsert(
     {
@@ -924,22 +1312,142 @@ export const inviteProjectMemberRecord = async ({ projectId, email, role }) => {
     status: 'pending',
   });
   if (invitationError) throw invitationError;
-  await logActivity(projectId, 'Invitation envoyee', { email, role });
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: projectRow.organization_id,
+    projectId,
+    label: 'Invitation envoyee',
+    eventKey: 'project.member_invited',
+    entityType: 'project_member',
+    entityId: email,
+    payload: {
+      email,
+      role,
+      projectName: projectRow?.name || 'Chantier',
+    },
+    notifications: invitedProfile?.id
+      ?[
+        {
+          userId: invitedProfile.id,
+          title: `Invitation chantier: ${projectRow?.name || 'Chantier'}`,
+          body: `Vous avez ete invite en tant que ${role}.`,
+          metadata: { email, role, projectName: projectRow?.name || 'Chantier' },
+        },
+      ]
+      : [],
+  });
 };
 
 export const updateProjectMemberRoleRecord = async (memberId, role) => {
-  const { error } = await supabase.from('project_members').update({ role: roleToDbMap[role] || 'contractor' }).eq('id', memberId);
+  const { data: member, error: memberFetchError } = await supabase
+    .from('project_members')
+    .select('id, project_id, user_id, display_name, email, role')
+    .eq('id', memberId)
+    .single();
+  if (memberFetchError) throw memberFetchError;
+
+  const nextRole = roleToDbMap[role] || 'contractor';
+  const { error } = await supabase.from('project_members').update({ role: nextRole }).eq('id', memberId);
   if (error) throw error;
+  const project = await fetchProjectContext(member.project_id);
+  const changes = diffFields({ role: member.role }, { role: nextRole });
+  const actor = await getCurrentUser();
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: project?.organization_id,
+    projectId: member.project_id,
+    label: 'Role intervenant modifie',
+    eventKey: 'project.member_role_updated',
+    entityType: 'project_member',
+    entityId: memberId,
+    payload: {
+      memberName: member.display_name || member.email || 'Intervenant',
+      changes,
+    },
+    notifications: member.user_id
+      ?[
+        {
+          userId: member.user_id,
+          title: `Role mis a jour sur ${project?.name || 'le chantier'}`,
+          body: `Votre role est maintenant ${role}.`,
+          metadata: { memberId, role, projectName: project?.name || '' },
+        },
+      ]
+      : [],
+  });
 };
 
 export const updateProjectMemberPermissionsRecord = async (memberId, permissions) => {
-  const { error } = await supabase.from('project_members').update({ permissions: normalizePermissions(permissions) }).eq('id', memberId);
+  const { data: member, error: memberFetchError } = await supabase
+    .from('project_members')
+    .select('id, project_id, user_id, display_name, email, permissions')
+    .eq('id', memberId)
+    .single();
+  if (memberFetchError) throw memberFetchError;
+  const nextPermissions = normalizePermissions(permissions);
+  const { error } = await supabase.from('project_members').update({ permissions: nextPermissions }).eq('id', memberId);
   if (error) throw error;
+  const project = await fetchProjectContext(member.project_id);
+  const actor = await getCurrentUser();
+  const changes = diffFields({ permissions: member.permissions || {} }, { permissions: nextPermissions });
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: project?.organization_id,
+    projectId: member.project_id,
+    label: 'Permissions intervenant modifiees',
+    eventKey: 'project.member_permissions_updated',
+    entityType: 'project_member',
+    entityId: memberId,
+    payload: {
+      memberName: member.display_name || member.email || 'Intervenant',
+      changes,
+    },
+    notifications: member.user_id
+      ?[
+        {
+          userId: member.user_id,
+          title: `Acces chantier mis a jour: ${project?.name || 'Chantier'}`,
+          body: `Vos permissions ont change: ${summarizeChanges(changes) || 'acces chantier'}.`,
+          metadata: { memberId, changes, projectName: project?.name || '' },
+        },
+      ]
+      : [],
+  });
 };
 
 export const removeProjectMemberRecord = async (memberId) => {
+  const { data: member, error: memberFetchError } = await supabase
+    .from('project_members')
+    .select('id, project_id, user_id, display_name, email')
+    .eq('id', memberId)
+    .single();
+  if (memberFetchError) throw memberFetchError;
   const { error } = await supabase.from('project_members').delete().eq('id', memberId);
   if (error) throw error;
+  const project = await fetchProjectContext(member.project_id);
+  const actor = await getCurrentUser();
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: project?.organization_id,
+    projectId: member.project_id,
+    label: 'Intervenant retire',
+    eventKey: 'project.member_removed',
+    entityType: 'project_member',
+    entityId: memberId,
+    payload: {
+      memberName: member.display_name || member.email || 'Intervenant',
+    },
+    notifications: member.user_id
+      ?[
+        {
+          userId: member.user_id,
+          title: `Retrait du chantier: ${project?.name || 'Chantier'}`,
+          body: 'Votre acces a ce chantier a ete retire.',
+          metadata: { memberId, projectName: project?.name || '' },
+        },
+      ]
+      : [],
+  });
 };
 
 export const addProjectSectionRecord = async (projectId, name) => {
@@ -957,12 +1465,31 @@ export const addProjectSectionRecord = async (projectId, name) => {
     sort_order: (existingSections?.[0]?.sort_order ?? -1) + 1,
   });
   if (error) throw error;
-  await logActivity(projectId, 'Section ajoutee', { section: name });
+  const actor = await getCurrentUser();
+  const project = await fetchProjectContext(projectId);
+  const memberUserIds = await fetchProjectMemberUserIds(projectId);
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: project?.organization_id,
+    projectId,
+    label: 'Section ajoutee',
+    eventKey: 'project.section_created',
+    entityType: 'project_section',
+    entityId: name,
+    payload: { section: name, projectName: project?.name || '' },
+    notifications: memberUserIds.map((memberUserId) => ({
+      userId: memberUserId,
+      title: `Nouvelle section sur ${project?.name || 'le chantier'}`,
+      body: `La section "${name}" a ete ajoutee.`,
+      metadata: { section: name, projectName: project?.name || '' },
+    })),
+  });
 };
 
 export const createProjectTaskRecord = async ({ projectId, organizationId, task, sectionIdMap, assigneeIdsByName }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connecte.');
+  const project = await fetchProjectContext(projectId);
 
   const { data, error } = await supabase
     .from('tasks')
@@ -1001,10 +1528,35 @@ export const createProjectTaskRecord = async ({ projectId, organizationId, task,
     if (assigneeError) throw assigneeError;
   }
 
-  await logActivity(projectId, 'Tache creee', { title: task.title });
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: organizationId || project?.organization_id,
+    projectId,
+    label: 'Tache creee',
+    eventKey: 'task.created',
+    entityType: 'task',
+    entityId: data.id,
+    payload: {
+      taskTitle: task.title,
+      assigneeCount: assigneeRows.length,
+    },
+    notifications: assigneeRows.map((assignee) => ({
+      userId: assignee.user_id,
+      title: `Nouvelle tache: ${task.title}`,
+      body: `Vous avez ete assigne sur ${project?.name || 'un chantier'}.`,
+      metadata: { taskId: data.id, taskTitle: task.title, projectName: project?.name || '' },
+    })),
+  });
 };
 
 export const updateTaskRecord = async ({ taskId, updates, projectId, sectionIdMap }) => {
+  const { data: currentTask, error: currentTaskError } = await supabase
+    .from('tasks')
+    .select('id, organization_id, project_id, title, description, intervention_type, due_date, priority, status, section_id, created_by')
+    .eq('id', taskId)
+    .single();
+  if (currentTaskError) throw currentTaskError;
+
   const payload = {};
   if (typeof updates.title !== 'undefined') payload.title = updates.title;
   if (typeof updates.description !== 'undefined') payload.description = updates.description;
@@ -1016,56 +1568,173 @@ export const updateTaskRecord = async ({ taskId, updates, projectId, sectionIdMa
 
   const { error } = await supabase.from('tasks').update(payload).eq('id', taskId);
   if (error) throw error;
-  if (projectId) await logActivity(projectId, 'Tache mise a jour', { task_id: taskId });
+  const effectiveProjectId = projectId || currentTask.project_id;
+  const project = effectiveProjectId ?await fetchProjectContext(effectiveProjectId) : null;
+  const { data: assignees, error: assigneesError } = await supabase.from('task_assignees').select('user_id').eq('task_id', taskId);
+  if (assigneesError) throw assigneesError;
+  const actor = await getCurrentUser();
+  const changes = diffFields(currentTask, { ...currentTask, ...payload });
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: currentTask.organization_id || project?.organization_id || null,
+    projectId: effectiveProjectId,
+    label: 'Tache mise a jour',
+    eventKey: 'task.updated',
+    entityType: 'task',
+    entityId: taskId,
+    payload: {
+      taskTitle: payload.title || currentTask.title,
+      changes,
+    },
+    notifications: (assignees ?? []).map((assignee) => ({
+      userId: assignee.user_id,
+      title: `Tache mise a jour: ${payload.title || currentTask.title}`,
+      body: `Changements: ${summarizeChanges(changes) || 'mise a jour generale'}.`,
+      metadata: { taskId, taskTitle: payload.title || currentTask.title, changes, projectName: project?.name || '' },
+    })),
+  });
 };
 
 export const deleteTaskRecord = async (taskId) => {
+  const { data: currentTask, error: currentTaskError } = await supabase
+    .from('tasks')
+    .select('id, organization_id, project_id, title')
+    .eq('id', taskId)
+    .single();
+  if (currentTaskError) throw currentTaskError;
   const { error } = await supabase.from('tasks').delete().eq('id', taskId);
   if (error) throw error;
+  const actor = await getCurrentUser();
+  const project = currentTask.project_id ?await fetchProjectContext(currentTask.project_id) : null;
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: currentTask.organization_id || project?.organization_id || null,
+    projectId: currentTask.project_id,
+    label: 'Tache supprimee',
+    eventKey: 'task.deleted',
+    entityType: 'task',
+    entityId: taskId,
+    tone: 'warning',
+    payload: { taskTitle: currentTask.title },
+  });
 };
 
 export const archiveProjectRecord = async (projectId, archived) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connectA.');
+  const project = await fetchProjectContext(projectId);
   const payload = archived
     ? { archived_at: new Date().toISOString(), archived_by: user.id }
     : { archived_at: null, archived_by: null };
   const { error } = await supabase.from('projects').update(payload).eq('id', projectId);
   if (error) throw error;
-  await logActivity(projectId, archived ? 'Chantier archive' : 'Chantier restaure');
+  const memberUserIds = await fetchProjectMemberUserIds(projectId);
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: project?.organization_id,
+    projectId,
+    label: archived ? 'Chantier archive' : 'Chantier restaure',
+    eventKey: archived ? 'project.archived' : 'project.restored',
+    entityType: 'project',
+    entityId: projectId,
+    tone: archived ? 'warning' : 'info',
+    payload: {
+      projectName: project?.name || 'Chantier',
+    },
+    notifications: memberUserIds.map((memberUserId) => ({
+      userId: memberUserId,
+      title: `${archived ? 'Chantier archive' : 'Chantier restaure'}: ${project?.name || 'Chantier'}`,
+      body: archived ? 'Le chantier a ete archive.' : 'Le chantier est de nouveau actif.',
+      metadata: { projectName: project?.name || '' },
+    })),
+  });
 };
 
 export const archiveTaskRecord = async ({ taskId, archived, projectId }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connectA.');
+  const { data: currentTask, error: currentTaskError } = await supabase
+    .from('tasks')
+    .select('id, organization_id, project_id, title')
+    .eq('id', taskId)
+    .single();
+  if (currentTaskError) throw currentTaskError;
   const payload = archived
     ? { archived_at: new Date().toISOString(), archived_by: user.id, status: 'archived' }
     : { archived_at: null, archived_by: null, status: 'todo' };
   const { error } = await supabase.from('tasks').update(payload).eq('id', taskId);
   if (error) throw error;
-  if (projectId) await logActivity(projectId, archived ? 'Tache archivee' : 'Tache restauree', { task_id: taskId });
+  const effectiveProjectId = projectId || currentTask.project_id;
+  const project = effectiveProjectId ?await fetchProjectContext(effectiveProjectId) : null;
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: currentTask.organization_id || project?.organization_id || null,
+    projectId: effectiveProjectId,
+    label: archived ? 'Tache archivee' : 'Tache restauree',
+    eventKey: archived ? 'task.archived' : 'task.restored',
+    entityType: 'task',
+    entityId: taskId,
+    tone: archived ? 'warning' : 'info',
+    payload: { taskTitle: currentTask.title },
+  });
 };
 
 export const archiveDocumentRecord = async ({ documentId, archived, projectId }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connectA.');
+  const { data: document, error: documentFetchError } = await supabase
+    .from('documents')
+    .select('id, project_id, title')
+    .eq('id', documentId)
+    .single();
+  if (documentFetchError) throw documentFetchError;
   const payload = archived
     ? { archived_at: new Date().toISOString(), archived_by: user.id }
     : { archived_at: null, archived_by: null };
   const { error } = await supabase.from('documents').update(payload).eq('id', documentId);
   if (error) throw error;
-  if (projectId) await logActivity(projectId, archived ? 'Document archive' : 'Document restaure', { document_id: documentId });
+  const effectiveProjectId = projectId || document.project_id;
+  const project = effectiveProjectId ?await fetchProjectContext(effectiveProjectId) : null;
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: project?.organization_id || null,
+    projectId: effectiveProjectId,
+    label: archived ? 'Document archive' : 'Document restaure',
+    eventKey: archived ? 'document.archived' : 'document.restored',
+    entityType: 'document',
+    entityId: documentId,
+    tone: archived ? 'warning' : 'info',
+    payload: { documentTitle: document.title },
+  });
 };
 
 export const archivePlanRecord = async ({ planId, archived, projectId }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connectA.');
+  const { data: plan, error: planFetchError } = await supabase
+    .from('plans')
+    .select('id, project_id, title')
+    .eq('id', planId)
+    .single();
+  if (planFetchError) throw planFetchError;
   const payload = archived
     ? { archived_at: new Date().toISOString(), archived_by: user.id }
     : { archived_at: null, archived_by: null };
   const { error } = await supabase.from('plans').update(payload).eq('id', planId);
   if (error) throw error;
-  if (projectId) await logActivity(projectId, archived ? 'Plan archive' : 'Plan restaure', { plan_id: planId });
+  const effectiveProjectId = projectId || plan.project_id;
+  const project = effectiveProjectId ?await fetchProjectContext(effectiveProjectId) : null;
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: project?.organization_id || null,
+    projectId: effectiveProjectId,
+    label: archived ? 'Plan archive' : 'Plan restaure',
+    eventKey: archived ? 'plan.archived' : 'plan.restored',
+    entityType: 'plan',
+    entityId: planId,
+    tone: archived ? 'warning' : 'info',
+    payload: { planTitle: plan.title },
+  });
 };
 
 export const savePersonalTaskRecord = async ({ task, organizationId }) => {
@@ -1073,7 +1742,9 @@ export const savePersonalTaskRecord = async ({ task, organizationId }) => {
   if (!user) throw new Error('Utilisateur non connect?.');
   const organizationContext = organizationId ? { organizationId, user } : await getPrimaryOrganizationContext();
 
-  const { error } = await supabase.from('tasks').insert({
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({
     organization_id: organizationContext.organizationId,
     title: task.title.trim(),
     due_date: task.dueDate || null,
@@ -1081,13 +1752,38 @@ export const savePersonalTaskRecord = async ({ task, organizationId }) => {
     status: 'todo',
     source_label: task.source || 'Personnel',
     created_by: user.id,
-  });
+  })
+    .select('id')
+    .single();
   if (error) throw error;
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: organizationContext.organizationId,
+    label: 'Tache personnelle creee',
+    eventKey: 'personal_task.created',
+    entityType: 'task',
+    entityId: data.id,
+    payload: {
+      taskTitle: task.title.trim(),
+      source: task.source || 'Personnel',
+    },
+  });
 };
 
 export const upsertProjectDocumentRecord = async ({ projectId, doc, kind }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connecte.');
+  let existingDocument = null;
+  if (doc.id) {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, title, category, subcategory, version_label, status, document_date, file_name')
+      .eq('id', doc.id)
+      .single();
+    if (error) throw error;
+    existingDocument = data;
+  }
+  const project = await fetchProjectContext(projectId);
 
   const payload = {
     project_id: projectId,
@@ -1110,12 +1806,36 @@ export const upsertProjectDocumentRecord = async ({ projectId, doc, kind }) => {
     if (error) throw error;
   }
 
-  await logActivity(projectId, 'Document mis a jour', { title: payload.title, kind });
+  const memberUserIds = await fetchProjectMemberUserIds(projectId);
+  const changes = existingDocument ?diffFields(existingDocument, payload) : [];
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: project?.organization_id,
+    projectId,
+    label: existingDocument ? 'Document mis a jour' : 'Document cree',
+    eventKey: existingDocument ? 'document.updated' : 'document.created',
+    entityType: 'document',
+    entityId: doc.id || payload.title,
+    payload: {
+      title: payload.title,
+      kind,
+      changes,
+    },
+    notifications: memberUserIds.map((memberUserId) => ({
+      userId: memberUserId,
+      title: `${existingDocument ? 'Document mis a jour' : 'Nouveau document'}: ${payload.title}`,
+      body: existingDocument
+        ?`Changements: ${summarizeChanges(changes) || 'mise a jour generale'}.`
+        : `Type: ${kind}.`,
+      metadata: { title: payload.title, kind, changes, projectName: project?.name || '' },
+    })),
+  });
 };
 
 export const upsertPlanRecord = async ({ projectId, plan }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connecte.');
+  const project = await fetchProjectContext(projectId);
 
   let planId = plan.id;
   if (planId) {
@@ -1141,7 +1861,26 @@ export const upsertPlanRecord = async ({ projectId, plan }) => {
     created_by: user.id,
   });
   if (versionError) throw versionError;
-  await logActivity(projectId, 'Plan mis a jour', { plan: plan.name });
+  const memberUserIds = await fetchProjectMemberUserIds(projectId);
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: project?.organization_id,
+    projectId,
+    label: plan.id ? 'Plan mis a jour' : 'Plan cree',
+    eventKey: plan.id ? 'plan.updated' : 'plan.created',
+    entityType: 'plan',
+    entityId: planId,
+    payload: {
+      planName: plan.name,
+      version: nextVersion,
+    },
+    notifications: memberUserIds.map((memberUserId) => ({
+      userId: memberUserId,
+      title: `${plan.id ? 'Plan mis a jour' : 'Nouveau plan'}: ${plan.name}`,
+      body: `Version ${nextVersion} disponible.`,
+      metadata: { planId, planName: plan.name, version: nextVersion, projectName: project?.name || '' },
+    })),
+  });
 };
 
 export const ensureDirectConversationRecord = async ({ organizationId, currentUserId, projectId, friend }) => {
@@ -1199,6 +1938,32 @@ export const ensureDirectConversationRecord = async ({ organizationId, currentUs
     if (friendMemberError) throw friendMemberError;
   }
 
+  const actor = await getCurrentUser();
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId,
+    projectId: null,
+    label: 'Discussion privee creee',
+    eventKey: 'conversation.direct_created',
+    entityType: 'conversation',
+    entityId: data.id,
+    payload: {
+      conversationId: data.id,
+      participantId: friend.userId || null,
+      participantName: friend.name,
+    },
+    notifications: friend.userId
+      ?[
+        {
+          userId: friend.userId,
+          title: 'Nouvelle discussion privee',
+          body: `${friend.name ? `Discussion avec ${friend.name}` : 'Une discussion a ete ouverte avec vous'}.`,
+          metadata: { conversationId: data.id },
+        },
+      ]
+      : [],
+  });
+
   return data.id;
 };
 
@@ -1206,6 +1971,12 @@ export const sendConversationMessageRecord = async ({ conversationId, text, file
   const user = await getCurrentUser();
   if (!user) throw new Error('Utilisateur non connecte.');
   const profile = await fetchProfile(user.id);
+  const { data: conversation, error: conversationError } = await supabase
+    .from('conversations')
+    .select('id, title, organization_id, project_id')
+    .eq('id', conversationId)
+    .single();
+  if (conversationError) throw conversationError;
 
   let attachment = null;
   if (file) {
@@ -1223,12 +1994,234 @@ export const sendConversationMessageRecord = async ({ conversationId, text, file
     attachment_file_size: attachment?.file_size || null,
   });
   if (error) throw error;
+
+  const { data: members, error: membersError } = await supabase
+    .from('conversation_members')
+    .select('user_id')
+    .eq('conversation_id', conversationId);
+  if (membersError) throw membersError;
+
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId: conversation.organization_id,
+    projectId: conversation.project_id,
+    label: 'Message envoye',
+    eventKey: 'message.sent',
+    entityType: 'message',
+    entityId: conversationId,
+    payload: {
+      conversationId,
+      hasAttachment: Boolean(attachment),
+      preview: String(text || attachment?.file_name || '').slice(0, 120),
+    },
+    notifications: (members ?? []).map((member) => ({
+      userId: member.user_id,
+      title: conversation.project_id ? `Nouveau message sur ${conversation.title || 'le chantier'}` : 'Nouveau message prive',
+      body: text || (attachment ? `Piece jointe: ${attachment.file_name}` : 'Nouveau message'),
+      metadata: { conversationId, projectId: conversation.project_id },
+    })),
+  });
+};
+
+export const inviteFriendRecord = async ({ name, email, trade }) => {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Utilisateur non connecte.');
+  const memberships = await fetchOrganizationMemberships(user.id);
+  const organizationId = memberships[0]?.organization_id || null;
+
+  const requesterProfile = await fetchProfile(user.id);
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) throw new Error("L'email de l'ami est requis.");
+
+  const ownEmail = String(requesterProfile.email || user.email || '').trim().toLowerCase();
+  if (normalizedEmail === ownEmail) {
+    throw new Error("Vous ne pouvez pas vous inviter vous-meme.");
+  }
+
+  const addresseeProfile = await fetchProfileByEmail(normalizedEmail);
+  if (!addresseeProfile?.id) {
+    throw new Error("Aucun utilisateur n'est associe a cet email.");
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('friendships')
+    .select('id, requester_user_id, addressee_user_id, status')
+    .or(
+      `and(requester_user_id.eq.${user.id},addressee_user_id.eq.${addresseeProfile.id}),and(requester_user_id.eq.${addresseeProfile.id},addressee_user_id.eq.${user.id})`
+    );
+  if (existingError) throw existingError;
+
+  const existingRow = (existing ?? [])[0];
+  if (existingRow?.status === 'accepted') {
+    throw new Error('Ce contact est deja dans vos amis.');
+  }
+  if (existingRow?.status === 'pending') {
+    throw new Error('Une invitation est deja en attente pour ce contact.');
+  }
+
+  const payload = {
+    requester_user_id: user.id,
+    addressee_user_id: addresseeProfile.id,
+    requester_name: name?.trim() || requesterProfile.display_name || requesterProfile.email || user.email || 'Contact',
+    requester_email: requesterProfile.email || user.email || '',
+    requester_trade: trade?.trim() || requesterProfile.specialty || 'Partenaire',
+    status: 'pending',
+    responded_at: null,
+  };
+
+  if (existingRow) {
+    const { error } = await supabase.from('friendships').update(payload).eq('id', existingRow.id);
+    if (error) throw error;
+    await recordWorkspaceEvent({
+      actorId: user.id,
+      organizationId,
+      label: 'Invitation ami renvoyee',
+      eventKey: 'friendship.invite_resent',
+      entityType: 'friendship',
+      entityId: existingRow.id,
+      payload: { email: normalizedEmail },
+      notifications: [
+        {
+          userId: addresseeProfile.id,
+          title: 'Invitation de contact',
+          body: `${payload.requester_name} souhaite vous ajouter.`,
+          metadata: { friendshipId: existingRow.id },
+        },
+      ],
+    });
+    return existingRow.id;
+  }
+
+  const { data, error } = await supabase.from('friendships').insert(payload).select('id').single();
+  if (error) throw error;
+  await recordWorkspaceEvent({
+    actorId: user.id,
+    organizationId,
+    label: 'Invitation ami envoyee',
+    eventKey: 'friendship.invited',
+    entityType: 'friendship',
+    entityId: data.id,
+    payload: { email: normalizedEmail },
+    notifications: [
+      {
+        userId: addresseeProfile.id,
+        title: 'Nouvelle invitation de contact',
+        body: `${payload.requester_name} souhaite vous ajouter.`,
+        metadata: { friendshipId: data.id },
+      },
+    ],
+  });
+  return data.id;
+};
+
+export const respondToFriendInvitationRecord = async ({ friendshipId, decision }) => {
+  const nextStatus = decision === 'accepted' ? 'accepted' : 'refused';
+  const { data: friendship, error: friendshipFetchError } = await supabase
+    .from('friendships')
+    .select('id, requester_user_id, addressee_user_id')
+    .eq('id', friendshipId)
+    .single();
+  if (friendshipFetchError) throw friendshipFetchError;
+  const { error } = await supabase
+    .from('friendships')
+    .update({ status: nextStatus, responded_at: new Date().toISOString() })
+    .eq('id', friendshipId);
+  if (error) throw error;
+  const actor = await getCurrentUser();
+  const memberships = actor?.id ? await fetchOrganizationMemberships(actor.id) : [];
+  const organizationId = memberships[0]?.organization_id || null;
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId,
+    label: decision === 'accepted' ? 'Invitation ami acceptee' : 'Invitation ami refusee',
+    eventKey: decision === 'accepted' ? 'friendship.accepted' : 'friendship.refused',
+    entityType: 'friendship',
+    entityId: friendshipId,
+    payload: { decision },
+    notifications: friendship.requester_user_id
+      ?[
+        {
+          userId: friendship.requester_user_id,
+          title: decision === 'accepted' ? 'Invitation de contact acceptee' : 'Invitation de contact refusee',
+          body: decision === 'accepted' ? 'Votre demande a ete acceptee.' : 'Votre demande a ete refusee.',
+          metadata: { friendshipId, decision },
+        },
+      ]
+      : [],
+  });
+};
+
+export const removeFriendRecord = async ({ friendshipId }) => {
+  const { data: friendship, error: friendshipFetchError } = await supabase
+    .from('friendships')
+    .select('id, requester_user_id, addressee_user_id')
+    .eq('id', friendshipId)
+    .single();
+  if (friendshipFetchError) throw friendshipFetchError;
+  const { error } = await supabase.from('friendships').delete().eq('id', friendshipId);
+  if (error) throw error;
+  const actor = await getCurrentUser();
+  const memberships = actor?.id ? await fetchOrganizationMemberships(actor.id) : [];
+  const organizationId = memberships[0]?.organization_id || null;
+  const otherUserId =
+    friendship.requester_user_id === actor?.id ?friendship.addressee_user_id : friendship.requester_user_id;
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId,
+    label: 'Contact supprime',
+    eventKey: 'friendship.deleted',
+    entityType: 'friendship',
+    entityId: friendshipId,
+    tone: 'warning',
+    payload: { friendshipId },
+    notifications: otherUserId
+      ?[
+        {
+          userId: otherUserId,
+          title: 'Relation de contact supprimee',
+          body: 'Le contact a ete retire.',
+          metadata: { friendshipId },
+        },
+      ]
+      : [],
+  });
 };
 
 export const respondToProjectInvitationRecord = async ({ invitationId, decision }) => {
+  const { data: invitation, error: invitationFetchError } = await supabase
+    .from('project_invitations')
+    .select('id, project_id, invited_by, email, projects(name, organization_id)')
+    .eq('id', invitationId)
+    .single();
+  if (invitationFetchError) throw invitationFetchError;
   const { error } = await supabase.rpc('respond_to_project_invitation', {
     invitation_id: invitationId,
     decision,
   });
   if (error) throw error;
+  const actor = await getCurrentUser();
+  await recordWorkspaceEvent({
+    actorId: actor?.id,
+    organizationId: invitation.projects?.organization_id || null,
+    projectId: invitation.project_id,
+    label: decision === 'accepted' ? 'Invitation chantier acceptee' : 'Invitation chantier refusee',
+    eventKey: decision === 'accepted' ? 'project.invitation_accepted' : 'project.invitation_refused',
+    entityType: 'project_invitation',
+    entityId: invitationId,
+    payload: {
+      decision,
+      projectName: invitation.projects?.name || 'Chantier',
+      email: invitation.email,
+    },
+    notifications: invitation.invited_by
+      ?[
+        {
+          userId: invitation.invited_by,
+          title: `Invitation ${decision === 'accepted' ? 'acceptee' : 'refusee'}: ${invitation.projects?.name || 'Chantier'}`,
+          body: `${invitation.email} a ${decision === 'accepted' ? 'accepte' : 'refuse'} l invitation.`,
+          metadata: { invitationId, decision, projectName: invitation.projects?.name || '' },
+        },
+      ]
+      : [],
+  });
 };

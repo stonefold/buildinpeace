@@ -9,6 +9,9 @@ const parts = [
   '003_archiving_permissions.sql',
   '004_invitation_labels.sql',
   '005_direct_conversation_rls_fix.sql',
+  '006_friendships.sql',
+  '007_profile_directory.sql',
+  '008_audit_notifications.sql',
 ];
 
 const output = parts

@@ -5,8 +5,12 @@ import {
   faArrowLeft,
   faArrowDown,
   faArrowUp,
+  faBell,
+  faBoxArchive,
   faBuilding,
   faCamera,
+  faChevronDown,
+  faCircleInfo,
   faClipboardList,
   faComments,
   faEye,
@@ -40,11 +44,11 @@ const primaryNav = [
 ];
 
 const chantierTabs = [
-  { id: 'Administratif', label: 'Administratif', icon: faFileCircleCheck },
-  { id: 'Documents', label: 'Documents', icon: faFolderOpen },
-  { id: 'Plan', label: 'Plan', icon: faLayerGroup },
-  { id: 'Taches', label: 'Taches', icon: faClipboardList },
-  { id: 'Acteurs', label: 'Acteurs', icon: faUsers },
+  { id: 'Administratif', label: 'Administratif', mobileLabel: 'Administratif', icon: faFileCircleCheck, description: 'Contrats et pieces officielles' },
+  { id: 'Documents', label: 'Documents', mobileLabel: 'Documents', icon: faFolderOpen, description: 'Photos, fichiers et suivis' },
+  { id: 'Plan', label: 'Plan', mobileLabel: 'Plan', icon: faLayerGroup, description: 'Plans et versions annotees' },
+  { id: 'Taches', label: 'Taches', mobileLabel: 'Taches', icon: faClipboardList, description: 'Avancement et priorites' },
+  { id: 'Acteurs', label: 'Acteurs', mobileLabel: 'Equipes', icon: faUsers, description: 'Participants et coordination' },
 ];
 
 const roleOptions = ['Gestionnaire', 'Entrepreneur', 'Architecte', 'Client', 'Ouvrier', 'Sous-traitant'];
@@ -172,11 +176,27 @@ const initialAdminDocForm = {
   type: 'Offres',
   title: '',
   date: '',
-  status: 'En attente',
+  status: 'En cours',
   fileName: '',
 };
 
 const adminDocTypeOptions = ['Offres', 'Factures', 'Contrats', 'Assurances', 'Avancement'];
+const adminDocStatusOptions = ['En cours', 'Envoye'];
+const adminDocCreateLabels = {
+  Offres: 'Ajouter Offre',
+  Factures: 'Ajouter Facture',
+  Contrats: 'Ajouter Contrat',
+  Assurances: 'Ajouter Assurance',
+  Avancement: 'Ajouter Avancement',
+};
+
+const normalizeAdminDocStatus = (status) => {
+  if (['Validee', 'Signe', 'Active', 'Publie', 'Envoye'].includes(status)) {
+    return 'Envoye';
+  }
+
+  return 'En cours';
+};
 
 const initialDocumentForm = {
   id: null,
@@ -220,6 +240,13 @@ const taskStatusOptions = [
   { id: 'En cours', label: 'En cours' },
   { id: 'Terminee', label: 'Terminees' },
 ];
+
+const getMobileTaskStatusLabel = (status) => {
+  if (status === 'A faire') return 'A faire';
+  if (status === 'En cours') return 'En cours';
+  if (status === 'Terminee') return 'OK';
+  return status;
+};
 
 const getTaskStatus = (task) => {
   if (task.status === 'Terminee' || task.completed) {
@@ -326,9 +353,8 @@ function WorkspaceV2({ onSignOut }) {
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
   const [isInvitationCenterOpen, setIsInvitationCenterOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
-  const [localFriendInvitations, setLocalFriendInvitations] = useState([]);
-  const [localFriends, setLocalFriends] = useState([]);
   const [localDirectMessages, setLocalDirectMessages] = useState([]);
 
   useEffect(() => {
@@ -340,18 +366,10 @@ function WorkspaceV2({ onSignOut }) {
   }, [workspace.user]);
 
   useEffect(() => {
-    setLocalFriends([]);
     setLocalDirectMessages([]);
-    setLocalFriendInvitations([]);
   }, [workspace.user.id]);
 
-  const availableFriends = useMemo(() => {
-    const map = new Map();
-    [...(workspace.friends ?? []), ...localFriends].forEach((friend) => {
-      map.set(friend.id || friend.email, friend);
-    });
-    return [...map.values()];
-  }, [localFriends, workspace.friends]);
+  const availableFriends = useMemo(() => workspace.friends ?? [], [workspace.friends]);
 
   const availableDirectMessages = useMemo(() => {
     const map = new Map();
@@ -360,6 +378,11 @@ function WorkspaceV2({ onSignOut }) {
     });
     return [...map.values()];
   }, [localDirectMessages, workspace.directMessages]);
+  const notifications = useMemo(() => workspace.notifications ?? [], [workspace.notifications]);
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.isRead).length,
+    [notifications]
+  );
 
   const startupScreen = isLoading ?(
     <main className="workspace-auth-screen">
@@ -381,6 +404,43 @@ function WorkspaceV2({ onSignOut }) {
     () => projects.find((project) => project.id === activeProjectId) ?? null,
     [activeProjectId, projects]
   );
+
+  const overviewStats = useMemo(() => {
+    const normalizeStatus = (value) =>
+      (value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const activeProjects = projects.filter((project) => !project.archived);
+    const personalOpenTasks = (workspace.personalTasks ?? []).filter((task) => !task.archived && !task.completed).length;
+    const projectOpenTasks = projects.reduce(
+      (total, project) => total + (project.tasks ?? []).filter((task) => !task.archived && !task.completed).length,
+      0
+    );
+    const pendingDocs = projects.reduce(
+      (total, project) =>
+        total +
+        [...(project.documents ?? []), ...(project.adminDocs ?? [])].filter(
+          (doc) => !doc.archived && ['a verifier', 'en revision', 'en attente'].includes(normalizeStatus(doc.status))
+        ).length,
+      0
+    );
+    const projectMessageCount = projects.reduce(
+      (total, project) => total + (project.conversations ?? []).reduce((sum, conversation) => sum + (conversation.messages?.length ?? 0), 0),
+      0
+    );
+    const directMessageCount = availableDirectMessages.reduce((total, conversation) => total + (conversation.messages?.length ?? 0), 0);
+    const activeConversationCount =
+      projects.reduce((total, project) => total + (project.conversations?.length ?? 0), 0) + availableDirectMessages.length;
+
+    return [
+      { label: 'Chantiers actifs', value: activeProjects.length, detail: `${projects.length} chantiers visibles` },
+      { label: 'Taches a traiter', value: personalOpenTasks + projectOpenTasks, detail: `${(workspace.personalTasks ?? []).length} personnelles` },
+      { label: 'Documents a valider', value: pendingDocs, detail: 'Documents et administratif' },
+      { label: 'Messages non lus', value: projectMessageCount + directMessageCount, detail: `${activeConversationCount} conversations actives` },
+    ];
+  }, [availableDirectMessages, projects, workspace.personalTasks]);
 
   const currentParticipant = useMemo(
     () => activeProject?.participants.find((participant) => participant.name === demoWorkspace.user.name),
@@ -431,6 +491,14 @@ function WorkspaceV2({ onSignOut }) {
 
   const canManageProject = Boolean(projectPermissions.manageAccess);
 
+  const markUnreadNotificationsAsRead = async () => {
+    const unreadIds = notifications.filter((notification) => !notification.isRead).map((notification) => notification.id);
+    if (!unreadIds.length) {
+      return;
+    }
+    await actions.markNotificationsRead(unreadIds);
+  };
+
   const openProject = (projectId) => {
     setActiveProjectId(projectId);
     setActiveProjectTab('Taches');
@@ -456,6 +524,7 @@ function WorkspaceV2({ onSignOut }) {
             name: friend.name,
             preview: 'Discussion demarree.',
             unread: 0,
+            updatedAt: new Date().toISOString(),
             messages: [],
           },
           ...current,
@@ -463,6 +532,7 @@ function WorkspaceV2({ onSignOut }) {
       });
       setPreferredConversationId(localConversationId);
       setActiveSection('messages');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -479,6 +549,7 @@ function WorkspaceV2({ onSignOut }) {
 
     setPreferredConversationId(conversationId);
     setActiveSection('messages');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const sendDirectMessage = async (payload) => {
@@ -491,6 +562,7 @@ function WorkspaceV2({ onSignOut }) {
             : {
                 ...conversation,
                 preview: payload.text || (payload.file ? payload.file.name : conversation.preview),
+                updatedAt: new Date().toISOString(),
                 messages: [
                   ...(conversation.messages ?? []),
                   {
@@ -498,6 +570,7 @@ function WorkspaceV2({ onSignOut }) {
                     author: currentUserProfile.name || 'Vous',
                     text: payload.text || (payload.file ? `Piece jointe : ${payload.file.name}` : ''),
                     time,
+                    timestamp: new Date().toISOString(),
                     own: true,
                     status: 'Envoye',
                     attachment: payload.file
@@ -524,64 +597,20 @@ function WorkspaceV2({ onSignOut }) {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanName || !cleanEmail) return;
 
-    setLocalFriendInvitations((current) => [
-      {
-        id: `friend-invite-${Date.now()}`,
-        name: cleanName,
-        email: cleanEmail,
-        trade: trade.trim() || 'Partenaire',
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      },
-      ...current,
-    ]);
+    actions.inviteFriend({
+      name: cleanName,
+      email: cleanEmail,
+      trade: trade.trim() || 'Partenaire',
+    });
   };
 
-  const respondToFriendInvitation = (inviteId, decision) => {
-    const invite = localFriendInvitations.find((item) => item.id === inviteId);
-    if (!invite) return;
+  const respondToFriendInvitation = async (inviteId, decision) => {
+    await actions.respondToFriendInvitation({ friendshipId: inviteId, decision });
+  };
 
-    if (decision === 'accepted') {
-      const friendId = `friend-${Date.now()}`;
-      const conversationId = `local-conversation-${friendId}`;
-      const friend = {
-        id: friendId,
-        conversationId,
-        localOnly: true,
-        userId: null,
-        name: invite.name,
-        trade: invite.trade || 'Partenaire',
-        status: 'En ligne',
-        email: invite.email,
-        company: 'Invitation acceptee',
-      };
-
-      setLocalFriends((current) => [friend, ...current.filter((item) => item.email !== invite.email)]);
-      setLocalDirectMessages((current) => [
-        {
-          id: conversationId,
-          name: invite.name,
-          preview: 'Discussion demarree.',
-          unread: 0,
-          messages: [
-            {
-              id: `${conversationId}-welcome`,
-              author: invite.name,
-              text: 'Merci pour l invitation, on peut echanger ici.',
-              time: new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }),
-              own: false,
-              status: null,
-              attachment: null,
-            },
-          ],
-        },
-        ...current.filter((item) => item.id !== conversationId),
-      ]);
-      setPreferredConversationId(conversationId);
-      setActiveSection('messages');
-    }
-
-    setLocalFriendInvitations((current) => current.filter((item) => item.id !== inviteId));
+  const removeFriend = async (friend) => {
+    if (!friend?.friendshipId) return;
+    await actions.removeFriend({ friendshipId: friend.friendshipId });
   };
 
   const moveProject = (projectId, direction) => {
@@ -676,16 +705,13 @@ function WorkspaceV2({ onSignOut }) {
   };
 
   const handleCreateProject = async () => {
-    const { name, client, site, budget, startDate, endDate, sectionsInput } = newProject;
+    const { name, client, site, budget, startDate, endDate } = newProject;
     const existingProject = projects.find((project) => project.id === editingProjectId) ?? null;
     if (!name.trim() || !projectParticipants.length || !site.trim() || !startDate || !endDate) {
       return;
     }
 
-    const normalizedSections = sectionsInput
-      .split(',')
-      .map((section) => section.trim())
-      .filter(Boolean);
+    const normalizedSections = (existingProject?.sections ?? []).map((section) => section.trim()).filter(Boolean);
 
     const createdProject = {
       id: editingProjectId ?? `project-${Date.now()}`,
@@ -1105,13 +1131,18 @@ function WorkspaceV2({ onSignOut }) {
 
       <main className="workspace-main">
         <div className="workspace-top-actions">
+          <button type="button" className="secondary-button compact workspace-top-action-button" onClick={() => setIsNotificationCenterOpen(true)}>
+            <FontAwesomeIcon icon={faBell} />
+            Notifications
+            <span className="pill pill-electric">{unreadNotificationCount}</span>
+          </button>
           <button type="button" className="secondary-button compact" onClick={() => setIsInvitationCenterOpen(true)}>
-            Invitations
+            Invitations chantier
             <span className="pill pill-electric">{workspace.pendingInvitations.filter((item) => item.status === 'pending').length}</span>
           </button>
         </div>
         <section className="content-grid">
-          {activeSection === 'overview' && <OverviewSection project={activeProject ?? projects[0]} stats={workspace.stats} />}
+          {activeSection === 'overview' && <OverviewSection project={activeProject ?? projects[0]} stats={overviewStats} />}
           {activeSection === 'projects' && (
             <ProjectsSection
               activeProject={activeProject}
@@ -1167,6 +1198,7 @@ function WorkspaceV2({ onSignOut }) {
               onSavePersonalTask={(task) => actions.savePersonalTask({ task, organizationId: workspace.organization?.id })}
               onUpdateTask={actions.updateTask}
               onDeleteTask={actions.deleteTask}
+              onArchiveTask={actions.archiveTask}
             />
           )}
           {activeSection === 'messages' && (
@@ -1182,11 +1214,12 @@ function WorkspaceV2({ onSignOut }) {
           {activeSection === 'friends' && (
             <FriendsSection
               friends={availableFriends}
-              invitations={localFriendInvitations}
+              invitations={workspace.friendInvitations}
               currentUserStatus={currentUserProfile.status}
               onChangeCurrentUserStatus={(status) => setCurrentUserProfile((current) => ({ ...current, status }))}
               onInviteFriend={inviteFriend}
               onOpenPrivateDiscussion={openPrivateDiscussionWithFriend}
+              onRemoveFriend={removeFriend}
               onRespondToInvitation={respondToFriendInvitation}
             />
           )}
@@ -1228,7 +1261,8 @@ function WorkspaceV2({ onSignOut }) {
               {createStep === 1 && (
                 <div className="form-grid">
                   <label className="field field-full">
-                    <span>Nom du chantier</span>
+                    <span>Nom du chantier <strong className="field-required">*</strong></span>
+                    <small className="field-help">Obligatoire. Donne un nom clair pour retrouver facilement le chantier.</small>
                     <input
                       type="text"
                       placeholder="Ex. Renovation maison Lambert"
@@ -1241,9 +1275,17 @@ function WorkspaceV2({ onSignOut }) {
 
               {createStep === 2 && (
                 <div className="wizard-step-stack">
+                  <div className="summary-card field-tip-card">
+                    <div className="summary-row">
+                      <span>Ajouter une nouvelle personne ici</span>
+                      <strong>Les champs marques * sont obligatoires</strong>
+                    </div>
+                    <small className="field-help">Ajoute chaque intervenant du chantier puis clique sur `Ajouter l'intervenant` pour l'inclure dans la liste.</small>
+                  </div>
                   <div className="form-grid">
                     <label className="field">
-                      <span>Nom</span>
+                      <span>Nom <strong className="field-required">*</strong></span>
+                      <small className="field-help">Obligatoire. Nom de la personne a inviter sur le chantier.</small>
                       <input
                         type="text"
                         value={newProjectParticipant.name}
@@ -1253,7 +1295,8 @@ function WorkspaceV2({ onSignOut }) {
                       />
                     </label>
                     <label className="field">
-                      <span>Email</span>
+                      <span>Email <strong className="field-required">*</strong></span>
+                      <small className="field-help">Obligatoire. Utilise son adresse mail pour l'identifier correctement.</small>
                       <input
                         type="email"
                         value={newProjectParticipant.email}
@@ -1264,6 +1307,7 @@ function WorkspaceV2({ onSignOut }) {
                     </label>
                     <label className="field">
                       <span>Entreprise</span>
+                      <small className="field-help">Optionnel. Nom de sa societe ou equipe.</small>
                       <input
                         type="text"
                         value={newProjectParticipant.company}
@@ -1273,7 +1317,8 @@ function WorkspaceV2({ onSignOut }) {
                       />
                     </label>
                     <label className="field">
-                      <span>Role</span>
+                      <span>Role <strong className="field-required">*</strong></span>
+                      <small className="field-help">Obligatoire. Choisis le role de cette personne sur le chantier.</small>
                       <select
                         value={newProjectParticipant.role}
                         onChange={(event) =>
@@ -1290,7 +1335,7 @@ function WorkspaceV2({ onSignOut }) {
                   <div className="modal-actions modal-actions-inline">
                     <button type="button" className="secondary-button" onClick={addProjectParticipant}>
                       <FontAwesomeIcon icon={faUserPlus} />
-                      Ajouter l'intervenant
+                      Ajouter cette personne
                     </button>
                   </div>
 
@@ -1325,7 +1370,8 @@ function WorkspaceV2({ onSignOut }) {
               {createStep === 3 && (
                 <div className="form-grid">
                   <label className="field">
-                    <span>Client</span>
+                    <span>Client <strong className="field-required">*</strong></span>
+                    <small className="field-help">Obligatoire. Nom du client ou du donneur d'ordre.</small>
                     <input
                       type="text"
                       value={newProject.client}
@@ -1333,7 +1379,8 @@ function WorkspaceV2({ onSignOut }) {
                     />
                   </label>
                   <label className="field">
-                    <span>Ville / site</span>
+                    <span>Ville / site <strong className="field-required">*</strong></span>
+                    <small className="field-help">Obligatoire. Adresse courte, ville ou nom du site.</small>
                     <input
                       type="text"
                       value={newProject.site}
@@ -1342,6 +1389,7 @@ function WorkspaceV2({ onSignOut }) {
                   </label>
                   <label className="field">
                     <span>Budget</span>
+                    <small className="field-help">Optionnel. Tu peux mettre un budget estimatif.</small>
                     <input
                       type="text"
                       value={newProject.budget}
@@ -1349,7 +1397,8 @@ function WorkspaceV2({ onSignOut }) {
                     />
                   </label>
                   <label className="field">
-                    <span>Date de debut</span>
+                    <span>Date de debut <strong className="field-required">*</strong></span>
+                    <small className="field-help">Obligatoire. Date de lancement du chantier.</small>
                     <input
                       type="date"
                       value={newProject.startDate}
@@ -1357,22 +1406,12 @@ function WorkspaceV2({ onSignOut }) {
                     />
                   </label>
                   <label className="field">
-                    <span>Date de fin</span>
+                    <span>Date de fin <strong className="field-required">*</strong></span>
+                    <small className="field-help">Obligatoire. Date de fin prevue.</small>
                     <input
                       type="date"
                       value={newProject.endDate}
                       onChange={(event) => setNewProject((current) => ({ ...current, endDate: event.target.value }))}
-                    />
-                  </label>
-                  <label className="field field-full">
-                    <span>Sections du chantier</span>
-                    <input
-                      type="text"
-                      placeholder="Ex. Gros oeuvre, Cuisine, Facade"
-                      value={newProject.sectionsInput}
-                      onChange={(event) =>
-                        setNewProject((current) => ({ ...current, sectionsInput: event.target.value }))
-                      }
                     />
                   </label>
                 </div>
@@ -1405,10 +1444,6 @@ function WorkspaceV2({ onSignOut }) {
                     <strong>
                       {newProject.startDate || '-'} -> {newProject.endDate || '-'}
                     </strong>
-                  </div>
-                  <div className="summary-row">
-                    <span>Sections</span>
-                    <strong>{newProject.sectionsInput || 'General chantier'}</strong>
                   </div>
                 </div>
               )}
@@ -1505,6 +1540,13 @@ function WorkspaceV2({ onSignOut }) {
             invitations={workspace.pendingInvitations}
             onClose={() => setIsInvitationCenterOpen(false)}
             onRespond={respondToInvitation}
+          />
+        ) : null}
+        {isNotificationCenterOpen ?(
+          <NotificationCenterModal
+            notifications={notifications}
+            onClose={() => setIsNotificationCenterOpen(false)}
+            onMarkAllRead={markUnreadNotificationsAsRead}
           />
         ) : null}
 
@@ -1693,12 +1735,19 @@ function WorkspaceV2({ onSignOut }) {
 
 function OverviewSection({ project, stats }) {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [isMobileOverview, setIsMobileOverview] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 767 : false));
+
+  useEffect(() => {
+    const syncViewport = () => setIsMobileOverview(window.innerWidth <= 767);
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
+
   return (
     <>
       <section className="panel light-panel compact-panel">
         <div className="panel-heading compact dense-heading">
           <div>
-            <h3>{project.name}</h3>
             <p className="topbar-subcopy">{project.client} {'\u00b7'} {project.site} {'\u00b7'} {project.period}</p>
           </div>
           <div className="hero-inline-metrics">
@@ -1708,14 +1757,29 @@ function OverviewSection({ project, stats }) {
         </div>
         <div className="overview-rail">
           <div className="overview-column">
-            <button type="button" className="action-button compact quickview-button" onClick={() => setIsQuickViewOpen(true)}>
-              <FontAwesomeIcon icon={faLayerGroup} />
-              Vue rapide
-            </button>
+            {isMobileOverview ? (
+              <div className="stats-grid compact-stats-grid">
+                {stats.map((stat, index) => (
+                  <MetricBox
+                    key={stat.label}
+                    compact
+                    label={stat.label}
+                    value={stat.value}
+                    detail={stat.detail}
+                    icon={[faBuilding, faClipboardList, faFolderOpen, faComments][index]}
+                  />
+                ))}
+              </div>
+            ) : (
+              <button type="button" className="action-button compact quickview-button" onClick={() => setIsQuickViewOpen(true)}>
+                <FontAwesomeIcon icon={faLayerGroup} />
+                Vue rapide
+              </button>
+            )}
           </div>
         </div>
       </section>
-      {isQuickViewOpen && (
+      {!isMobileOverview && isQuickViewOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card light-modal detail-modal">
             <div className="panel-heading compact">
@@ -1800,6 +1864,150 @@ function ProjectsSection({
   taskView,
   workspacePermissions,
 }) {
+  const [isMobileProjectView, setIsMobileProjectView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 767 : false));
+  const [openedMobileProjectTab, setOpenedMobileProjectTab] = useState(null);
+  const [showTaskRecap, setShowTaskRecap] = useState(false);
+
+  useEffect(() => {
+    const syncViewport = () => setIsMobileProjectView(window.innerWidth <= 767);
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (activeProjectTab !== 'Taches') {
+      setShowTaskRecap(false);
+    }
+  }, [activeProjectId, activeProjectTab]);
+
+  useEffect(() => {
+    setOpenedMobileProjectTab(null);
+  }, [activeProjectId, isMobileProjectView]);
+
+  const selectedProjectTab = isMobileProjectView ? openedMobileProjectTab : activeProjectTab;
+  const isMobileProjectTabOpen = isMobileProjectView && Boolean(openedMobileProjectTab);
+  const visibleChantierTabs = chantierTabs.filter((tab) => availableTabs.includes(tab.id));
+  if (!activeProject) {
+    return (
+      <section className="panel light-panel">
+        <div className="panel-heading">
+          <div>
+            <h3>Selectionne un chantier</h3>
+          </div>
+          {workspacePermissions.createProject && (
+            <button type="button" className="action-button" onClick={onCreateProject}>
+              <FontAwesomeIcon icon={faPlus} />
+              Ajouter un chantier
+            </button>
+          )}
+        </div>
+        <ProjectList
+          activeProjectId={activeProjectId}
+          canArchiveProject={workspacePermissions.archiveProject}
+          onArchiveProject={onArchiveProject}
+          onEditProject={onEditProject}
+          projects={projects}
+          onMoveProject={onMoveProject}
+          onOpenProject={onOpenProject}
+        />
+      </section>
+    );
+  }
+  const mobileProjectSubtitle = [activeProject.site, activeProject.client].filter(Boolean).join(' · ') || 'Coordination et suivi chantier';
+
+  const openProjectTab = (tabId) => {
+    onSelectTab(tabId);
+    if (isMobileProjectView) {
+      setOpenedMobileProjectTab(tabId);
+    }
+  };
+
+  const closeMobileProjectTab = () => {
+    setOpenedMobileProjectTab(null);
+    setShowTaskRecap(false);
+  };
+
+  const renderProjectTabContent = (tabId) => {
+    if (tabId === 'Administratif') {
+      return (
+        <AdminDocsTab
+          canAddAdminDoc={permissions.addAdminDoc}
+          canArchive={permissions.archiveDocument}
+          onArchiveDoc={(documentId, archived) => onArchiveDocument?.(documentId, archived, 'adminDocs')}
+          onSaveAdminDoc={onSaveAdminDoc}
+          project={activeProject}
+        />
+      );
+    }
+
+    if (tabId === 'Documents') {
+      return (
+        <DocumentsTab
+          canAddDocument={permissions.addDocument}
+          canArchive={permissions.archiveDocument}
+          onArchiveDocument={(documentId, archived) => onArchiveDocument?.(documentId, archived, 'documents')}
+          onSaveDocument={onSaveDocument}
+          project={activeProject}
+        />
+      );
+    }
+
+    if (tabId === 'Plan') {
+      return (
+        <PlansTab
+          canAddPlan={permissions.addPlan}
+          canArchive={permissions.archivePlan}
+          onArchivePlan={onArchivePlan}
+          onSavePlan={onSavePlan}
+          project={activeProject}
+        />
+      );
+    }
+
+    if (tabId === 'Taches') {
+      return (
+        <CompactProjectTasksTab
+          canArchiveTask={permissions.archiveTask}
+          canCreateSection={permissions.createSection}
+          canCreateTask={permissions.createTask}
+          canDeleteTask={permissions.deleteTask}
+          canUpdateTask={permissions.updateTask}
+          onUpdateTask={onUpdateTask}
+          project={activeProject}
+          onDeleteTask={onDeleteTask}
+          onOpenSectionModal={onOpenSectionModal}
+          onOpenTaskModal={() => {
+            setTaskStep(1);
+            onSetNewTask({
+              title: '',
+              description: '',
+              interventionType: '',
+              dueDate: '',
+              section: '',
+              assignees: [],
+              priority: 'Pas urgent',
+            });
+            onOpenTaskModal();
+          }}
+          onToggleTaskArchived={onArchiveTask}
+          onSetTaskStatus={onToggleTaskCompleted}
+          onToggleSection={onToggleSection}
+          openSections={openSections}
+          onCloseTaskRecap={() => setShowTaskRecap(false)}
+          onToggleTaskRecap={() => setShowTaskRecap((current) => !current)}
+          showTaskRecap={showTaskRecap}
+          useTopbarTaskRecapControl={isMobileProjectView}
+        />
+      );
+    }
+
+    if (tabId === 'Acteurs') {
+      return <CompactActorsTab project={activeProject} />;
+    }
+
+    return null;
+  };
+
   if (!activeProject) {
     return (
       <section className="panel light-panel">
@@ -1828,142 +2036,187 @@ function ProjectsSection({
   }
 
   return (
-    <section className="panel light-panel chantier-panel chantier-panel-full project-detail-screen">
-        <div className="chantier-topbar">
-          <div className="chantier-topbar-main">
+    <section className={`panel light-panel chantier-panel chantier-panel-full project-detail-screen ${isMobileProjectTabOpen ? 'is-mobile-tab-open' : ''}`}>
+      {!isMobileProjectTabOpen ? (
+      <div className="chantier-topbar">
+        <div className="chantier-topbar-main">
+          <button
+            type="button"
+            className="secondary-button compact chantier-back-button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onBack?.();
+            }}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} />
+            <span className="button-label">Retour</span>
+          </button>
+          <div className="chantier-topbar-title">
+            <span className="eyebrow chantier-title-kicker">Chantier en cours</span>
+            <h3>{activeProject.name}</h3>
+            <p className="chantier-title-subline">{activeProject.site || activeProject.client || 'Suivi chantier'}</p>
+          </div>
+        </div>
+        <div className="chantier-topbar-side">
+          <div className="project-actions-row project-meta-row chantier-meta-side">
+            <span className="project-meta-pill project-meta-pill-location">
+              <FontAwesomeIcon icon={faLocationDot} />
+              <strong>{activeProject.site}</strong>
+            </span>
+            <span className="project-meta-pill">
+              <span>Client</span>
+              <strong>{activeProject.client}</strong>
+            </span>
+            <span className="project-meta-pill">
+              <span>Periode</span>
+              <strong>{activeProject.period}</strong>
+            </span>
+            <span className="project-meta-pill">
+              <span>Role</span>
+              <strong>{getNormalizedRole(currentParticipant?.role) || '-'}</strong>
+            </span>
+          </div>
+          <div className="chantier-topbar-actions">
+            <div className="chantier-topbar-actions-right">
+              <button type="button" className="secondary-button compact chantier-action-button chantier-info-button" onClick={onOpenProjectInfo} aria-label="Informations chantier">
+                <FontAwesomeIcon icon={faCircleInfo} />
+                <span className="button-label-desktop">Informations chantier</span>
+                <span className="button-label-mobile">Infos chantier</span>
+              </button>
+              {activeProjectTab === 'Taches' && isMobileProjectView && (
+                <button
+                  type="button"
+                  className={`secondary-button compact chantier-action-button chantier-recap-topbar-button ${showTaskRecap ? 'is-active' : ''}`}
+                  onClick={() => setShowTaskRecap((current) => !current)}
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                  <span className="button-label-mobile">{showTaskRecap ? 'Fermer récap' : 'Récap +'}</span>
+                </button>
+              )}
+              {canManageProject && (
+                <button type="button" className="secondary-button compact chantier-action-button chantier-access-button" onClick={onOpenAccessModal}>
+                  <span className="button-label-desktop">Gerer les acces</span>
+                  <span className="button-label-mobile">Gérer accès</span>
+                </button>
+              )}
+              {permissions.inviteParticipant && (
+                <button type="button" className="secondary-button compact chantier-action-button" onClick={onInvite}>
+                  <FontAwesomeIcon icon={faUserPlus} />
+                  <span className="button-label-desktop">Inviter</span>
+                  <span className="button-label-mobile">Inviter</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      ) : null}
+
+      {!isMobileProjectTabOpen ? (
+        isMobileProjectView ? (
+      <div className="chantier-mobile-overview">
+        <div className="chantier-mobile-tab-grid">
+          {visibleChantierTabs.map((tab) => (
             <button
+              key={tab.id}
               type="button"
-              className="secondary-button compact chantier-back-button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onBack?.();
-              }}
+              className={`tab-button chantier-mobile-tab-card ${selectedProjectTab === tab.id ? 'is-active' : ''}`}
+              onClick={() => openProjectTab(tab.id)}
             >
+              <span className="chantier-mobile-tab-icon">
+                <FontAwesomeIcon icon={tab.icon} />
+              </span>
+              <span className="chantier-mobile-tab-copy">
+                <strong>{tab.mobileLabel || tab.label}</strong>
+                <small>{tab.description}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+        ) : (
+      <div className="tab-strip chantier-strip chantier-strip-top">
+        {visibleChantierTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`tab-button ${selectedProjectTab === tab.id ? 'is-active' : ''}`}
+            onClick={() => openProjectTab(tab.id)}
+          >
+            <FontAwesomeIcon icon={tab.icon} />
+            <span className="tab-button-label tab-button-label-desktop">{tab.label}</span>
+            <span className="tab-button-label tab-button-label-mobile">{tab.mobileLabel || tab.label}</span>
+          </button>
+        ))}
+      </div>
+        )
+      ) : null}
+
+      {isMobileProjectTabOpen ? (
+        <div className="project-mobile-tab-screen">
+          <div className="project-mobile-tab-header">
+            <button type="button" className="secondary-button compact actors-back-button messages-back-button" onClick={closeMobileProjectTab}>
               <FontAwesomeIcon icon={faArrowLeft} />
               <span className="button-label">Retour</span>
             </button>
-            <div className="chantier-topbar-title">
-              <h3>{activeProject.name}</h3>
-            </div>
+            {selectedProjectTab === 'Administratif' ? (
+              <div className="admin-header-card project-mobile-admin-header">
+                <div className="admin-header-copy">
+                  <p className="eyebrow">Administratif</p>
+                  <h3>Gestion administrative</h3>
+                  <p className="admin-header-project-name">{activeProject.name}</p>
+                  <p className="topbar-subcopy">{mobileProjectSubtitle}</p>
+                </div>
+              </div>
+            ) : selectedProjectTab === 'Documents' ? (
+              <div className="documents-header-card project-mobile-documents-header">
+                <div className="documents-header-copy">
+                  <p className="eyebrow">Documents</p>
+                  <h3>Gestion documentaire</h3>
+                  <p className="documents-header-project-name">{activeProject.name}</p>
+                  <p className="topbar-subcopy">{mobileProjectSubtitle}</p>
+                </div>
+              </div>
+            ) : selectedProjectTab === 'Plan' ? (
+              <div className="plans-header-card project-mobile-plans-header">
+                <div className="plans-header-copy">
+                  <p className="eyebrow">Plan</p>
+                  <h3>Gestion des plans</h3>
+                  <p className="plans-header-project-name">{activeProject.name}</p>
+                  <p className="topbar-subcopy">{mobileProjectSubtitle}</p>
+                </div>
+              </div>
+            ) : selectedProjectTab === 'Taches' ? (
+              <div className="tasks-header-card project-mobile-tasks-header">
+                <div className="tasks-header-copy">
+                  <p className="eyebrow">Taches</p>
+                  <h3>Gestion des taches</h3>
+                  <p className="tasks-header-project-name">{activeProject.name}</p>
+                  <p className="topbar-subcopy">{mobileProjectSubtitle}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="project-mobile-tab-title">
+                <p className="eyebrow">Chantier</p>
+                <h3>{selectedProjectTab}</h3>
+                <p className="project-mobile-tab-subtitle">{activeProject.name}</p>
+                <small>{mobileProjectSubtitle}</small>
+              </div>
+            )}
           </div>
-          <div className="chantier-topbar-actions">
-            {canManageProject && (
-              <>
-                <button type="button" className="secondary-button compact success-button" onClick={onOpenAccessModal}>
-                  Gerer les acces
-                </button>
-              </>
-            )}
-            {permissions.inviteParticipant && (
-              <>
-                <button type="button" className="action-button compact" onClick={onInvite}>
-                  <FontAwesomeIcon icon={faUserPlus} />
-                  Inviter
-                </button>
-              </>
-            )}
-            {permissions.archiveProject && (
-              <button
-                type="button"
-                className="secondary-button compact archive-button"
-                onClick={() => onArchiveProject?.(activeProject.id, !activeProject.archived)}
-              >
-                {activeProject.archived ? 'Restaurer' : 'Archiver'}
-              </button>
-            )}
-            <button type="button" className="secondary-button icon-only" onClick={onOpenProjectInfo} aria-label="Informations chantier">
-              i
-            </button>
+          <div className="project-module-stage project-module-stage-mobile">
+            {renderProjectTabContent(selectedProjectTab)}
           </div>
         </div>
-
-        <div className="tab-strip chantier-strip chantier-strip-top">
-          {chantierTabs
-            .filter((tab) => availableTabs.includes(tab.id))
-            .map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`tab-button ${activeProjectTab === tab.id ? 'is-active' : ''}`}
-                onClick={() => onSelectTab(tab.id)}
-              >
-                <FontAwesomeIcon icon={tab.icon} />
-                <span>{tab.label}</span>
-              </button>
-            ))}
+      ) : (
+        <div className="project-mobile-tab-hint">
+          <strong>Choisis un sous-onglet</strong>
+          <p>Chaque module s'ouvre maintenant sur son propre ecran mobile avec retour.</p>
         </div>
+      )}
 
-        <div className="project-actions-row project-meta-row">
-          <span className="project-location">
-            <FontAwesomeIcon icon={faLocationDot} />
-            {activeProject.site}
-          </span>
-          <span className="project-client-line">{activeProject.client}</span>
-          <span className="project-client-line">{activeProject.period}</span>
-          <span className="project-client-line">Role : {getNormalizedRole(currentParticipant?.role) || '-'}</span>
-        </div>
-
-        <div className="project-module-stage">
-          {activeProjectTab === 'Administratif' && (
-            <AdminDocsTab
-              canAddAdminDoc={permissions.addAdminDoc}
-              canArchive={permissions.archiveDocument}
-              onArchiveDoc={(documentId, archived) => onArchiveDocument?.(documentId, archived, 'adminDocs')}
-              onSaveAdminDoc={onSaveAdminDoc}
-              project={activeProject}
-            />
-          )}
-          {activeProjectTab === 'Documents' && (
-            <DocumentsTab
-              canAddDocument={permissions.addDocument}
-              canArchive={permissions.archiveDocument}
-              onArchiveDocument={(documentId, archived) => onArchiveDocument?.(documentId, archived, 'documents')}
-              onSaveDocument={onSaveDocument}
-              project={activeProject}
-            />
-          )}
-          {activeProjectTab === 'Plan' && (
-            <PlansTab
-              canAddPlan={permissions.addPlan}
-              canArchive={permissions.archivePlan}
-              onArchivePlan={onArchivePlan}
-              onSavePlan={onSavePlan}
-              project={activeProject}
-            />
-          )}
-          {activeProjectTab === 'Taches' && (
-            <CompactProjectTasksTab
-              canArchiveTask={permissions.archiveTask}
-              canCreateSection={permissions.createSection}
-              canCreateTask={permissions.createTask}
-              canDeleteTask={permissions.deleteTask}
-              canUpdateTask={permissions.updateTask}
-              onUpdateTask={onUpdateTask}
-              project={activeProject}
-              onDeleteTask={onDeleteTask}
-              onOpenSectionModal={onOpenSectionModal}
-              onOpenTaskModal={() => {
-                setTaskStep(1);
-                onSetNewTask({
-                  title: '',
-                  description: '',
-                  interventionType: '',
-                  dueDate: '',
-                  section: '',
-                  assignees: [],
-                  priority: 'Pas urgent',
-                });
-                onOpenTaskModal();
-              }}
-              onToggleTaskArchived={onArchiveTask}
-              onSetTaskStatus={onToggleTaskCompleted}
-              onToggleSection={onToggleSection}
-              openSections={openSections}
-            />
-          )}
-          {activeProjectTab === 'Acteurs' && <CompactActorsTab project={activeProject} />}
-        </div>
+      {!isMobileProjectView ? <div className="project-module-stage">{renderProjectTabContent(selectedProjectTab)}</div> : null}
       </section>
   );
 }
@@ -1974,16 +2227,17 @@ function ProjectList({ projects, onMoveProject, onOpenProject, onEditProject, ac
 
   return (
     <>
-      <div className="documents-tabs-wrap">
+      <div className="documents-tabs-wrap project-archive-toggle-wrap">
         <div className="task-tabs">
           <button type="button" className={`tab-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
             Actifs
           </button>
           <button type="button" className={`tab-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
-            Archives
+            Archive
           </button>
         </div>
       </div>
+      <div className="project-list-frame">
       <div className="project-list project-list-rows view-mode-list">
         {visibleProjects.map((project, index) => (
           <article key={project.id} className={`project-list-card ${activeProjectId === project.id ? 'is-active' : ''}`}>
@@ -2045,6 +2299,7 @@ function ProjectList({ projects, onMoveProject, onOpenProject, onEditProject, ac
           </article>
         ))}
       </div>
+      </div>
     </>
   );
 }
@@ -2064,23 +2319,48 @@ function AdminDocsTab({ project, canAddAdminDoc, canArchive, onArchiveDoc, onSav
   };
 
   const filteredDocs = project.adminDocs.filter((doc) => doc.type === selectedType && (showArchived ?doc.archived : !doc.archived));
-  const groups = [
-    {
-      label: selectedType + ' en cours',
-      items: filteredDocs.filter((doc) => ['En attente', 'En cours', 'Brouillon', 'A verifier', 'En revision'].includes(doc.status)),
-    },
-    {
-      label: selectedType + ' valides',
-      items: filteredDocs.filter((doc) => ['Validee', 'Signe', 'Active', 'Publie'].includes(doc.status)),
-    },
-    {
-      label: selectedType + ' archives',
-      items: filteredDocs.filter((doc) => ['Archive', 'Refusee', 'Refusee', 'Expiree'].includes(doc.status)),
-    },
-  ];
+  const groups = showArchived
+    ? [
+        {
+          label: `${selectedType} archives`,
+          items: filteredDocs,
+        },
+      ]
+    : [
+        {
+          label: `${selectedType} en cours`,
+          items: filteredDocs.filter((doc) => normalizeAdminDocStatus(doc.status) === 'En cours'),
+        },
+        {
+          label: `${selectedType} envoyes`,
+          items: filteredDocs.filter((doc) => normalizeAdminDocStatus(doc.status) === 'Envoye'),
+        },
+      ];
+  const groupLabels = groups.map((group) => group.label).join('|');
+
+  useEffect(() => {
+    setOpenAdminGroups(
+      Object.fromEntries(
+        groupLabels
+          .split('|')
+          .filter(Boolean)
+          .map((label) => [label, true])
+      )
+    );
+    setOpenAdminDocId(null);
+  }, [groupLabels]);
 
   return (
     <div className="admin-module">
+      <div className="admin-header-card">
+        <div className="admin-header-copy">
+          <p className="eyebrow">Administratif</p>
+          <h3>Gestion administrative</h3>
+          <p className="admin-header-project-name">{project.name}</p>
+          <p className="topbar-subcopy">Offres, factures, contrats, assurances et avancement du chantier au meme endroit.</p>
+        </div>
+      </div>
+
       <div className="task-tabs">
         {adminDocTypeOptions.map((type) => (
           <button
@@ -2093,11 +2373,12 @@ function AdminDocsTab({ project, canAddAdminDoc, canArchive, onArchiveDoc, onSav
           </button>
         ))}
       </div>
+
       <div className="admin-doc-toolbar">
-        <button type="button" className={`secondary-button compact ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+        <button type="button" className={`secondary-button compact admin-filter-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
           En cours
         </button>
-        <button type="button" className={`secondary-button compact ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+        <button type="button" className={`secondary-button compact admin-filter-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
           Archives
         </button>
       </div>
@@ -2122,7 +2403,7 @@ function AdminDocsTab({ project, canAddAdminDoc, canArchive, onArchiveDoc, onSav
                 onClick={() => openAdminEditor({ ...initialAdminDocForm, type: selectedType })}
               >
                 <FontAwesomeIcon icon={faPlus} />
-                Ajouter
+                {adminDocCreateLabels[selectedType] || 'Ajouter'}
               </button>
             )}
           </div>
@@ -2141,7 +2422,7 @@ function AdminDocsTab({ project, canAddAdminDoc, canArchive, onArchiveDoc, onSav
                     </div>
                     <div className="admin-doc-meta">
                       <span>{doc.date}</span>
-                      <span className="pill pill-electric">{doc.status}</span>
+                      <span className="pill pill-electric">{doc.archived ? 'Archive' : normalizeAdminDocStatus(doc.status)}</span>
                     </div>
                   </button>
                   {openAdminDocId === doc.id ?(
@@ -2214,7 +2495,11 @@ function AdminDocsTab({ project, canAddAdminDoc, canArchive, onArchiveDoc, onSav
                 </label>
                 <label className="field">
                   <span>Statut</span>
-                  <input type="text" value={editingDoc.status} onChange={(event) => setEditingDoc((current) => ({ ...current, status: event.target.value }))} />
+                  <select value={normalizeAdminDocStatus(editingDoc.status)} onChange={(event) => setEditingDoc((current) => ({ ...current, status: event.target.value }))}>
+                    {adminDocStatusOptions.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
             )}
@@ -2312,7 +2597,7 @@ function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, 
   const [showArchived, setShowArchived] = useState(false);
   const documentSections = [
     { id: 'Plans', label: 'Plans', tabLabel: 'Plans', aliases: ['Plans'] },
-    { id: 'Technique', label: 'Technique', tabLabel: 'Tech.', aliases: ['Technique', 'Techniques'] },
+    { id: 'Technique', label: 'Technique', tabLabel: 'Technique', aliases: ['Technique', 'Techniques'] },
     { id: 'Photo', label: 'Photo', tabLabel: 'Photo', aliases: ['Photo', 'Photos'] },
   ];
   const [activeDocumentSection, setActiveDocumentSection] = useState('Plans');
@@ -2337,19 +2622,20 @@ function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, 
   };
 
   useEffect(() => {
-    if (isPhotoSection) {
-      setOpenDocumentId(null);
-      return;
-    }
-
     const sectionDocs = selectedSection?.docs ?? [];
-    setOpenDocumentId((current) => (
-      sectionDocs.some((doc) => doc.id === current) ?current : (sectionDocs[0]?.id ?? null)
-    ));
-  }, [isPhotoSection, selectedSection]);
+    setOpenDocumentId((current) => (sectionDocs.some((doc) => doc.id === current) ? current : null));
+  }, [selectedSection]);
 
   return (
     <div className="documents-module">
+      <div className="documents-header-card">
+        <div className="documents-header-copy">
+          <p className="eyebrow">Documents</p>
+          <h3>Gestion documentaire</h3>
+          <p className="documents-header-project-name">{project.name}</p>
+          <p className="topbar-subcopy">Plans, documents techniques et photos du chantier regroupes dans une seule vue.</p>
+        </div>
+      </div>
       <div className="documents-shell">
         <div className="documents-tabs-wrap">
           <div className="task-tabs">
@@ -2365,10 +2651,18 @@ function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, 
             ))}
           </div>
           <div className="task-tabs">
-            <button type="button" className={`tab-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+            <button
+              type="button"
+              className={`secondary-button compact admin-filter-button ${showArchived ? '' : 'is-active'}`}
+              onClick={() => setShowArchived(false)}
+            >
               Actifs
             </button>
-            <button type="button" className={`tab-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+            <button
+              type="button"
+              className={`secondary-button compact admin-filter-button ${showArchived ? 'is-active' : ''}`}
+              onClick={() => setShowArchived(true)}
+            >
               Archives
             </button>
           </div>
@@ -2382,7 +2676,7 @@ function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, 
               })}
             >
               <FontAwesomeIcon icon={faPlus} />
-              Ajouter
+              {`Ajouter ${selectedSection?.label ?? 'document'}`}
             </button>
           ) : null}
         </div>
@@ -2401,6 +2695,7 @@ function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, 
                       <FontAwesomeIcon icon={faImage} />
                     </span>
                     <span className="photo-thumb-label">{doc.subcategory || 'Photo'}</span>
+                    <span className="photo-thumb-toggle">{openDocumentId === doc.id ? '-' : '+'}</span>
                   </button>
                   <div className="photo-card-body">
                     <strong>{doc.name}</strong>
@@ -2459,6 +2754,7 @@ function DocumentsTab({ project, canAddDocument, canArchive, onArchiveDocument, 
                     <div className="document-summary-meta">
                       <span>{doc.version}</span>
                       <span className="pill pill-electric">{doc.status}</span>
+                      <span className="document-summary-toggle">{openDocumentId === doc.id ? '-' : '+'}</span>
                     </div>
                   </button>
                   {openDocumentId === doc.id ?(
@@ -3144,7 +3440,7 @@ function PlansTab({ project, canAddPlan, canArchive, onArchivePlan, onSavePlan }
   const visiblePlans = project.plans.filter((plan) => (showArchived ?plan.archived : !plan.archived));
 
   useEffect(() => {
-    setOpenPlanId((current) => (project.plans.some((plan) => plan.id === current) ?current : (project.plans[0]?.id ?? null)));
+    setOpenPlanId((current) => (project.plans.some((plan) => plan.id === current) ? current : null));
   }, [project.plans]);
 
   useEffect(() => {
@@ -3237,11 +3533,19 @@ function PlansTab({ project, canAddPlan, canArchive, onArchivePlan, onSavePlan }
 
   return (
     <div className="plans-module">
+      <div className="plans-header-card">
+        <div className="plans-header-copy">
+          <p className="eyebrow">Plan</p>
+          <h3>Gestion des plans</h3>
+          <p className="plans-header-project-name">{project.name}</p>
+          <p className="topbar-subcopy">Plans, versions et annotations du chantier dans une seule interface.</p>
+        </div>
+      </div>
       <div className="plan-toolbar">
-        <button type="button" className={`secondary-button compact ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+        <button type="button" className={`secondary-button compact admin-filter-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
           Actifs
         </button>
-        <button type="button" className={`secondary-button compact ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+        <button type="button" className={`secondary-button compact admin-filter-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
           Archives
         </button>
         {canAddPlan ?(
@@ -3281,6 +3585,7 @@ function PlansTab({ project, canAddPlan, canArchive, onArchivePlan, onSavePlan }
                 <div className="plan-summary-meta">
                   <span className="pill pill-electric">{`v${plan.version}`}</span>
                   <span>{`${plan.pins ?? 0} reperes`}</span>
+                  <span className="plan-summary-toggle">{openPlanId === plan.id ? '-' : '+'}</span>
                 </div>
               </button>
 
@@ -3937,19 +4242,31 @@ function CompactProjectTasksTab({
   showTaskRecapControl = true,
   project,
   onDeleteTask,
+  onCloseTaskRecap,
   onOpenSectionModal,
   onOpenTaskModal,
   onSetTaskStatus,
+  onToggleTaskRecap,
   onToggleTaskArchived,
   onToggleSection,
   openSections,
+  showTaskRecap,
+  useTopbarTaskRecapControl = false,
 }) {
   const [openTaskId, setOpenTaskId] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
+  const [isMobileTaskBoard, setIsMobileTaskBoard] = useState(() => (typeof window !== 'undefined' ?window.innerWidth <= 480 : false));
   const [showArchived, setShowArchived] = useState(false);
   const [selectedSection, setSelectedSection] = useState(project.sections?.[0] ?? null);
-  const [showTaskRecap, setShowTaskRecap] = useState(false);
+  const [internalShowTaskRecap, setInternalShowTaskRecap] = useState(false);
+  const [collapsedStatuses, setCollapsedStatuses] = useState({});
+
+  useEffect(() => {
+    const syncViewport = () => setIsMobileTaskBoard(window.innerWidth <= 480);
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!project.sections?.length) {
@@ -3962,7 +4279,25 @@ function CompactProjectTasksTab({
 
   const scopedTasks = project.tasks.filter((task) => task.archived === showArchived);
   const sectionTasks = scopedTasks.filter((task) => task.section === selectedSection);
+  const openedMobileTask = isMobileTaskBoard ?sectionTasks.find((task) => task.id === openTaskId) ?? null : null;
   const projectTasks = project.tasks ?? [];
+  const isTaskRecapOpen = typeof showTaskRecap === 'boolean' ? showTaskRecap : internalShowTaskRecap;
+  const toggleTaskRecap = () => {
+    if (typeof onToggleTaskRecap === 'function') {
+      onToggleTaskRecap();
+      return;
+    }
+
+    setInternalShowTaskRecap((current) => !current);
+  };
+  const closeTaskRecap = () => {
+    if (typeof onCloseTaskRecap === 'function') {
+      onCloseTaskRecap();
+      return;
+    }
+
+    setInternalShowTaskRecap(false);
+  };
   const recapItems = [
     { label: 'Total', value: projectTasks.length },
     { label: 'A faire', value: projectTasks.filter((task) => getTaskStatus(task) === 'A faire').length },
@@ -3975,41 +4310,44 @@ function CompactProjectTasksTab({
     section,
     tasks: projectTasks.filter((task) => task.section === section),
   }));
+  const toggleStatusColumn = (statusId) => {
+    setCollapsedStatuses((current) => ({ ...current, [statusId]: !current[statusId] }));
+  };
 
   return (
     <div className="task-module">
       <div className="task-toolbar">
         <div className="task-toolbar-actions">
-          <button type="button" className={`secondary-button compact ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
+          <button type="button" className={`secondary-button compact task-filter-button ${showArchived ? '' : 'is-active'}`} onClick={() => setShowArchived(false)}>
             Actives
           </button>
-          <button type="button" className={`secondary-button compact ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
-            Archives
+          <button type="button" className={`secondary-button compact task-filter-button ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived(true)}>
+            Archive
           </button>
           {canCreateTask && typeof onOpenTaskModal === 'function' && (
-            <button type="button" className="action-button" onClick={onOpenTaskModal}>
+            <button type="button" className="action-button task-primary-mobile-button" onClick={onOpenTaskModal}>
               <FontAwesomeIcon icon={faPlus} />
               Ajouter une tache
             </button>
           )}
           {canCreateSection && typeof onOpenSectionModal === 'function' && (
-            <button type="button" className="secondary-button" onClick={onOpenSectionModal}>
+            <button type="button" className="secondary-button task-primary-mobile-button" onClick={onOpenSectionModal}>
               <FontAwesomeIcon icon={faPlus} />
               Ajouter une section
             </button>
           )}
         </div>
         {showTaskRecapControl ? (
-          <div className="task-toolbar-side">
-            <button type="button" className={`secondary-button compact recap-side-button ${showTaskRecap ? 'is-active' : ''}`} onClick={() => setShowTaskRecap((current) => !current)}>
+          <div className={`task-toolbar-side ${useTopbarTaskRecapControl ? 'is-mobile-topbar-controlled' : ''}`}>
+            <button type="button" className={`secondary-button compact recap-side-button ${isTaskRecapOpen ? 'is-active' : ''}`} onClick={toggleTaskRecap}>
               <FontAwesomeIcon icon={faPlus} />
-              {showTaskRecap ? 'Fermer recap' : 'Recap +'}
+              {isTaskRecapOpen ? 'Fermer recap' : 'Recap +'}
             </button>
           </div>
         ) : null}
       </div>
 
-      {showTaskRecapControl && showTaskRecap ?(
+      {showTaskRecapControl && isTaskRecapOpen ?(
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card light-modal detail-modal task-recap-modal">
             <div className="panel-heading compact">
@@ -4018,7 +4356,7 @@ function CompactProjectTasksTab({
                 <h3>{project.name}</h3>
                 <p className="topbar-subcopy">Vue complete du chantier et de toutes ses taches en un clic.</p>
               </div>
-              <button type="button" className="secondary-button compact" onClick={() => setShowTaskRecap(false)}>
+              <button type="button" className="secondary-button compact" onClick={closeTaskRecap}>
                 Fermer
               </button>
             </div>
@@ -4156,11 +4494,23 @@ function CompactProjectTasksTab({
                   }}
                 >
                   <div className={`project-task-column-header ${getTaskStatusToneClass(status.id)}`}>
-                    <strong>{status.label}</strong>
-                    <span className="pill">{columnTasks.length}</span>
+                    <strong>{isMobileTaskBoard ? getMobileTaskStatusLabel(status.id) : status.label}</strong>
+                    <div className="task-column-header-actions">
+                      <span className="pill">{columnTasks.length}</span>
+                      <button
+                        type="button"
+                        className="icon-button task-column-toggle"
+                        onClick={() => toggleStatusColumn(status.id)}
+                        aria-label={collapsedStatuses[status.id] ? `Ouvrir ${status.label}` : `Fermer ${status.label}`}
+                        title={collapsedStatuses[status.id] ? 'Ouvrir la colonne' : 'Fermer la colonne'}
+                      >
+                        <FontAwesomeIcon icon={faChevronDown} className={collapsedStatuses[status.id] ? '' : 'is-expanded'} />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="task-list project-task-column-list">
+                  {!collapsedStatuses[status.id] ? (
+                    <div className="task-list project-task-column-list">
                     {columnTasks.length ?(
                       columnTasks.map((task) => {
                         const isOpen = openTaskId === task.id;
@@ -4177,7 +4527,13 @@ function CompactProjectTasksTab({
                             <button
                               type="button"
                               className="task-summary"
-                              onClick={() => setOpenTaskId((current) => (current === task.id ? null : task.id))}
+                              onClick={() => {
+                                if (isMobileTaskBoard) {
+                                  setOpenTaskId(task.id);
+                                  return;
+                                }
+                                setOpenTaskId((current) => (current === task.id ? null : task.id));
+                              }}
                             >
                               <div className="task-summary-main">
                                 <strong>{task.title}</strong>
@@ -4185,12 +4541,10 @@ function CompactProjectTasksTab({
                               </div>
                               <div className="task-summary-meta">
                                 <span className={`pill ${getTaskStatusBadgeClass(task)}`}>{getTaskStatus(task)}</span>
-                                {getTaskPriorityLabel(task.priority) === 'Urgent' ? (
-                                  <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
-                                ) : null}
+                                <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
                               </div>
                             </button>
-                            {isOpen && (
+                            {isOpen && !isMobileTaskBoard && (
                               <div className="task-details">
                                 <div className="details-row">
                                   <span>Description</span>
@@ -4278,10 +4632,85 @@ function CompactProjectTasksTab({
                         </div>
                       </div>
                     )}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
+          </div>
+        </div>
+      ) : null}
+
+      {openedMobileTask ?(
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card light-modal detail-modal task-detail-modal">
+            <div className="panel-heading compact">
+              <div>
+                <h3>{openedMobileTask.title}</h3>
+              </div>
+              <button type="button" className="secondary-button compact" onClick={() => setOpenTaskId(null)}>
+                Fermer
+              </button>
+            </div>
+            <div className="details-card light-card">
+              <div className="details-row">
+                <span>Statut</span>
+                <strong>{getTaskStatus(openedMobileTask)}</strong>
+              </div>
+              <div className="details-row">
+                <span>Priorite</span>
+                <strong>{getTaskPriorityLabel(openedMobileTask.priority)}</strong>
+              </div>
+              <div className="details-row">
+                <span>Responsables</span>
+                <strong>{openedMobileTask.assignees?.join(', ') || 'Non assigne'}</strong>
+              </div>
+              <div className="details-row">
+                <span>Date</span>
+                <strong>{openedMobileTask.dueDate || '-'}</strong>
+              </div>
+              <div className="details-row align-start">
+                <span>Description</span>
+                <strong>{openedMobileTask.description || '-'}</strong>
+              </div>
+              {(canUpdateTask || canDeleteTask || canArchiveTask) && (
+                <div className="admin-doc-actions">
+                  {canUpdateTask && getTaskStatus(openedMobileTask) !== 'A faire' ?(
+                    <button type="button" className="secondary-button compact" onClick={() => { onSetTaskStatus(openedMobileTask.id, 'A faire'); setOpenTaskId(null); }}>
+                      <FontAwesomeIcon icon={faArrowLeft} />
+                      {'A faire'}
+                    </button>
+                  ) : null}
+                  {canUpdateTask && getTaskStatus(openedMobileTask) !== 'En cours' ?(
+                    <button type="button" className="secondary-button compact" onClick={() => { onSetTaskStatus(openedMobileTask.id, 'En cours'); setOpenTaskId(null); }}>
+                      <FontAwesomeIcon icon={faEye} />
+                      En cours
+                    </button>
+                  ) : null}
+                  {canUpdateTask && getTaskStatus(openedMobileTask) !== 'Terminee' ?(
+                    <button type="button" className="secondary-button compact" onClick={() => { onSetTaskStatus(openedMobileTask.id, 'Terminee'); setOpenTaskId(null); }}>
+                      <FontAwesomeIcon icon={faArrowUp} />
+                      Terminer
+                    </button>
+                  ) : null}
+                  {canDeleteTask ?(
+                    <button type="button" className="icon-button danger" onClick={() => { onDeleteTask(openedMobileTask.id); setOpenTaskId(null); }}>
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  ) : null}
+                  {canArchiveTask ?(
+                    <button type="button" className="secondary-button compact archive-button" onClick={() => { onToggleTaskArchived?.(openedMobileTask.id, !openedMobileTask.archived); setOpenTaskId(null); }}>
+                      {openedMobileTask.archived ? 'Restaurer' : 'Archiver'}
+                    </button>
+                  ) : null}
+                  {canUpdateTask ?(
+                    <button type="button" className="secondary-button compact" onClick={() => { setEditingTask(openedMobileTask); setOpenTaskId(null); }}>
+                      Modifier
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : null}
@@ -4348,9 +4777,12 @@ function CompactActorsTab({ project }) {
   return <ActorsTab project={project} />;
 }
 
-function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
+function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus, onToggleTaskArchived, showArchived, onToggleTaskArchivedView, onArchiveSection }) {
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [openTaskId, setOpenTaskId] = useState(null);
+  const [isMobileTaskBoard, setIsMobileTaskBoard] = useState(() => (typeof window !== 'undefined' ?window.innerWidth <= 480 : false));
+  const [isSectionCollapsed, setIsSectionCollapsed] = useState(true);
+  const [collapsedStatuses, setCollapsedStatuses] = useState(() => Object.fromEntries(taskStatusOptions.map((status) => [status.id, true])));
   const sections = useMemo(() => {
     const names = Array.from(new Set((tasks ?? []).map((task) => (task.source || 'Personnel').trim() || 'Personnel')));
     return names.length ? names : ['Personnel'];
@@ -4361,24 +4793,60 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
     setSelectedSection((current) => (current && sections.includes(current) ? current : sections[0] ?? 'Personnel'));
   }, [sections]);
 
+  useEffect(() => {
+    setIsSectionCollapsed(true);
+    setCollapsedStatuses(Object.fromEntries(taskStatusOptions.map((status) => [status.id, true])));
+  }, [selectedSection, showArchived]);
+
+  useEffect(() => {
+    const syncViewport = () => setIsMobileTaskBoard(window.innerWidth <= 480);
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
+
   const sectionTasks = (tasks ?? []).filter((task) => ((task.source || 'Personnel').trim() || 'Personnel') === selectedSection);
+  const openedMobileTask = isMobileTaskBoard ?sectionTasks.find((task) => task.id === openTaskId) ?? null : null;
+  const toggleStatusColumn = (statusId) => {
+    setCollapsedStatuses((current) => ({ ...current, [statusId]: !current[statusId] }));
+  };
 
   return (
     <div className="task-module">
+      <div className="task-toolbar">
+        <div className="task-toolbar-actions">
+          <button type="button" className={`secondary-button compact task-filter-button ${showArchived ? '' : 'is-active'}`} onClick={() => onToggleTaskArchivedView?.(false)}>
+            Actifs
+          </button>
+          <button type="button" className={`secondary-button compact task-filter-button ${showArchived ? 'is-active' : ''}`} onClick={() => onToggleTaskArchivedView?.(true)}>
+            Archives
+          </button>
+        </div>
+      </div>
+
       <div className="section-selector">
         {sections.map((section) => {
           const taskCount = (tasks ?? []).filter((task) => ((task.source || 'Personnel').trim() || 'Personnel') === section).length;
           const isActive = selectedSection === section;
           return (
-            <button
-              key={section}
-              type="button"
-              className={`section-chip ${isActive ? 'is-active' : ''}`}
-              onClick={() => setSelectedSection(section)}
-            >
-              <span>{section}</span>
-              <span className="pill">{taskCount}</span>
-            </button>
+            <div key={section} className={`section-chip ${isActive ? 'is-active' : ''}`}>
+              <button
+                type="button"
+                className="section-chip-main"
+                onClick={() => setSelectedSection(section)}
+              >
+                <span>{section}</span>
+                <span className="pill">{taskCount}</span>
+              </button>
+              <button
+                type="button"
+                className="section-chip-action"
+                onClick={() => onArchiveSection?.(section, !showArchived)}
+                aria-label={showArchived ? `Restaurer la section ${section}` : `Archiver la section ${section}`}
+                title={showArchived ? 'Restaurer section' : 'Archiver section'}
+              >
+                <FontAwesomeIcon icon={showArchived ? faArrowUp : faBoxArchive} />
+              </button>
+            </div>
           );
         })}
       </div>
@@ -4390,8 +4858,20 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
               <h3>{selectedSection}</h3>
               <p>{sectionTasks.length} tache{sectionTasks.length > 1 ? 's' : ''} dans cette section</p>
             </div>
+            <div className="section-panel-actions">
+              <button
+                type="button"
+                className="secondary-button compact section-toggle-button"
+                onClick={() => setIsSectionCollapsed((current) => !current)}
+                aria-label={isSectionCollapsed ? 'Ouvrir la section' : 'Fermer la section'}
+                title={isSectionCollapsed ? 'Ouvrir la section' : 'Fermer la section'}
+              >
+                <FontAwesomeIcon icon={faChevronDown} className={isSectionCollapsed ? '' : 'is-expanded'} />
+              </button>
+            </div>
           </div>
-          <div className="project-task-board">
+          {!isSectionCollapsed ? (
+            <div className="project-task-board">
             {taskStatusOptions.map((status) => {
               const columnTasks = sectionTasks.filter((task) => getTaskStatus(task) === status.id);
 
@@ -4414,11 +4894,23 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
                   }}
                 >
                   <div className={`project-task-column-header ${getTaskStatusToneClass(status.id)}`}>
-                    <strong>{status.label}</strong>
-                    <span className="pill">{columnTasks.length}</span>
+                    <strong>{isMobileTaskBoard ? getMobileTaskStatusLabel(status.id) : status.label}</strong>
+                    <div className="task-column-header-actions">
+                      <span className="pill">{columnTasks.length}</span>
+                      <button
+                        type="button"
+                        className="icon-button task-column-toggle"
+                        onClick={() => toggleStatusColumn(status.id)}
+                        aria-label={collapsedStatuses[status.id] ? `Ouvrir ${status.label}` : `Fermer ${status.label}`}
+                        title={collapsedStatuses[status.id] ? 'Ouvrir la colonne' : 'Fermer la colonne'}
+                      >
+                        <FontAwesomeIcon icon={faChevronDown} className={collapsedStatuses[status.id] ? '' : 'is-expanded'} />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="task-list project-task-column-list">
+                  {!collapsedStatuses[status.id] ? (
+                    <div className="task-list project-task-column-list">
                     {columnTasks.length ?(
                       columnTasks.map((task) => {
                         const isOpen = openTaskId === task.id;
@@ -4435,7 +4927,13 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
                             <button
                               type="button"
                               className="task-summary"
-                              onClick={() => setOpenTaskId((current) => (current === task.id ? null : task.id))}
+                              onClick={() => {
+                                if (isMobileTaskBoard) {
+                                  setOpenTaskId(task.id);
+                                  return;
+                                }
+                                setOpenTaskId((current) => (current === task.id ? null : task.id));
+                              }}
                             >
                               <div className="task-summary-main">
                                 <strong>{task.title}</strong>
@@ -4443,12 +4941,10 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
                               </div>
                               <div className="task-summary-meta">
                                 <span className={`pill ${getTaskStatusBadgeClass(task)}`}>{getTaskStatus(task)}</span>
-                            {getTaskPriorityLabel(task.priority) === 'Urgent' ? (
-                              <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
-                            ) : null}
+                            <span className={`pill ${getTaskPriorityBadgeClass(task.priority)}`}>{getTaskPriorityLabel(task.priority)}</span>
                               </div>
                             </button>
-                            {isOpen && (
+                            {isOpen && !isMobileTaskBoard && (
                               <div className="task-details">
                                 <div className="details-row">
                                   <span>Description</span>
@@ -4467,24 +4963,29 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
                                   <strong>{task.dueDate || '-'}</strong>
                                 </div>
                                 <div className="admin-doc-actions">
-                                  {getTaskStatus(task) !== 'A faire' && (
+                                  {!showArchived && getTaskStatus(task) !== 'A faire' && (
                                     <button type="button" className="secondary-button compact" onClick={() => onSetTaskStatus(task.id, 'A faire')}>
                                       <FontAwesomeIcon icon={faArrowLeft} />
                                       {'A faire'}
                                     </button>
                                   )}
-                                  {getTaskStatus(task) !== 'En cours' && (
+                                  {!showArchived && getTaskStatus(task) !== 'En cours' && (
                                     <button type="button" className="secondary-button compact" onClick={() => onSetTaskStatus(task.id, 'En cours')}>
                                       <FontAwesomeIcon icon={faEye} />
                                       En cours
                                     </button>
                                   )}
-                                  {getTaskStatus(task) !== 'Terminee' && (
+                                  {!showArchived && getTaskStatus(task) !== 'Terminee' && (
                                     <button type="button" className="secondary-button compact" onClick={() => onSetTaskStatus(task.id, 'Terminee')}>
                                       <FontAwesomeIcon icon={faArrowUp} />
                                       Terminer
                                     </button>
                                   )}
+                                  {onToggleTaskArchived ? (
+                                    <button type="button" className="secondary-button compact archive-button" onClick={() => onToggleTaskArchived(task.id, !task.archived)}>
+                                      {task.archived ? 'Restaurer' : 'Archiver'}
+                                    </button>
+                                  ) : null}
                                   <button type="button" className="icon-button danger" onClick={() => onDeleteTask(task.id)}>
                                     <FontAwesomeIcon icon={faTrash} />
                                   </button>
@@ -4502,10 +5003,73 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
                         </div>
                       </div>
                     )}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {openedMobileTask ?(
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card light-modal detail-modal">
+            <div className="panel-heading compact">
+              <div>
+                <h3>{openedMobileTask.title}</h3>
+              </div>
+              <button type="button" className="secondary-button compact" onClick={() => setOpenTaskId(null)}>
+                Fermer
+              </button>
+            </div>
+            <div className="details-card light-card">
+              <div className="details-row">
+                <span>Statut</span>
+                <strong>{getTaskStatus(openedMobileTask)}</strong>
+              </div>
+              <div className="details-row">
+                <span>Priorite</span>
+                <strong>{getTaskPriorityLabel(openedMobileTask.priority)}</strong>
+              </div>
+              <div className="details-row">
+                <span>Date</span>
+                <strong>{openedMobileTask.dueDate || '-'}</strong>
+              </div>
+              <div className="details-row align-start">
+                <span>Description</span>
+                <strong>{openedMobileTask.description || openedMobileTask.source || '-'}</strong>
+              </div>
+              <div className="admin-doc-actions task-detail-actions">
+                {!showArchived && getTaskStatus(openedMobileTask) !== 'A faire' ?(
+                  <button type="button" className="secondary-button compact" onClick={() => { onSetTaskStatus(openedMobileTask.id, 'A faire'); setOpenTaskId(null); }}>
+                    <FontAwesomeIcon icon={faArrowLeft} />
+                    {'A faire'}
+                  </button>
+                ) : null}
+                {!showArchived && getTaskStatus(openedMobileTask) !== 'En cours' ?(
+                  <button type="button" className="secondary-button compact" onClick={() => { onSetTaskStatus(openedMobileTask.id, 'En cours'); setOpenTaskId(null); }}>
+                    <FontAwesomeIcon icon={faEye} />
+                    En cours
+                  </button>
+                ) : null}
+                {!showArchived && getTaskStatus(openedMobileTask) !== 'Terminee' ?(
+                  <button type="button" className="secondary-button compact" onClick={() => { onSetTaskStatus(openedMobileTask.id, 'Terminee'); setOpenTaskId(null); }}>
+                    <FontAwesomeIcon icon={faArrowUp} />
+                    Terminer
+                  </button>
+                ) : null}
+                {onToggleTaskArchived ?(
+                  <button type="button" className="secondary-button compact archive-button" onClick={() => { onToggleTaskArchived(openedMobileTask.id, !openedMobileTask.archived); setOpenTaskId(null); }}>
+                    {openedMobileTask.archived ? 'Restaurer' : 'Archiver'}
+                  </button>
+                ) : null}
+                <button type="button" className="icon-button danger" onClick={() => { onDeleteTask(openedMobileTask.id); setOpenTaskId(null); }}>
+                  <FontAwesomeIcon icon={faTrash} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -4513,20 +5077,22 @@ function CompactPersonalTasksTab({ tasks, onDeleteTask, onSetTaskStatus }) {
   );
 }
 
-function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, onSavePersonalTask, onUpdateTask, onDeleteTask }) {
+function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, onSavePersonalTask, onUpdateTask, onDeleteTask, onArchiveTask }) {
   const [taskScope, setTaskScope] = useState('personnel');
+  const [showArchivedPersonalTasks, setShowArchivedPersonalTasks] = useState(false);
   const [personalTasks, setPersonalTasks] = useState(sourcePersonalTasks);
   const [projectTaskMap, setProjectTaskMap] = useState(
     Object.fromEntries(projects.map((item) => [item.id, item.tasks]))
   );
-  const [selectedProjectId, setSelectedProjectId] = useState(project?.id ?? projects[0]?.id ?? null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [isPersonalTaskModalOpen, setIsPersonalTaskModalOpen] = useState(false);
   const [newPersonalTask, setNewPersonalTask] = useState({
     title: '',
     dueDate: '',
     priority: 'Pas urgent',
-    source: '',
+    source: 'Personnel',
   });
+  const [isCreatingPersonalSection, setIsCreatingPersonalSection] = useState(false);
 
   useEffect(() => {
     setPersonalTasks(sourcePersonalTasks);
@@ -4534,24 +5100,23 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
   }, [project, projects, sourcePersonalTasks]);
 
   useEffect(() => {
-    setSelectedProjectId((current) => {
-      if (current && projects.some((item) => item.id === current)) return current;
-      return project?.id ?? projects[0]?.id ?? null;
-    });
-  }, [project, projects]);
+    setSelectedProjectId((current) => (current && projects.some((item) => item.id === current) ? current : null));
+  }, [projects]);
 
   const savePersonalTask = async () => {
     if (!newPersonalTask.title.trim()) {
       return;
     }
 
+    const sectionName = (newPersonalTask.source || '').trim() || 'Personnel';
+
     const optimisticTask = {
       id: `personal-task-${Date.now()}`,
       title: newPersonalTask.title.trim(),
       dueDate: newPersonalTask.dueDate || new Date().toISOString().slice(0, 10),
       priority: newPersonalTask.priority,
-      source: newPersonalTask.source.trim() || 'Personnel',
-      description: newPersonalTask.source.trim() || '',
+      source: sectionName,
+      description: sectionName,
       status: 'A faire',
     };
     setPersonalTasks((current) => [optimisticTask, ...current]);
@@ -4559,13 +5124,14 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
       title: newPersonalTask.title.trim(),
       dueDate: newPersonalTask.dueDate || new Date().toISOString().slice(0, 10),
       priority: newPersonalTask.priority,
-      source: newPersonalTask.source.trim() || 'Personnel',
+      source: sectionName,
     });
     if (result === null) {
       setPersonalTasks((current) => current.filter((task) => task.id !== optimisticTask.id));
       return;
     }
-    setNewPersonalTask({ title: '', dueDate: '', priority: 'Pas urgent', source: '' });
+    setNewPersonalTask({ title: '', dueDate: '', priority: 'Pas urgent', source: sectionName });
+    setIsCreatingPersonalSection(false);
     setIsPersonalTaskModalOpen(false);
   };
 
@@ -4579,6 +5145,59 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
   const deletePersonalTask = async (taskId) => {
     setPersonalTasks((current) => current.filter((task) => task.id !== taskId));
     await onDeleteTask?.(taskId);
+  };
+
+  const togglePersonalTaskArchived = async (taskId, archived) => {
+    setPersonalTasks((current) =>
+      current.map((task) => (
+        task.id !== taskId
+          ? task
+          : {
+              ...task,
+              archived,
+              status: archived ? 'Terminee' : 'A faire',
+              completed: archived ? true : false,
+            }
+      ))
+    );
+    await onArchiveTask?.({ taskId, archived, projectId: null });
+  };
+
+  const visiblePersonalTasks = personalTasks.filter((task) => Boolean(task.archived) === showArchivedPersonalTasks);
+  const activePersonalTasksCount = personalTasks.filter((task) => !task.archived).length;
+  const archivedPersonalTasksCount = personalTasks.filter((task) => task.archived).length;
+  const personalSections = useMemo(() => {
+    const sections = Array.from(new Set(
+      personalTasks
+        .map((task) => (task.source || 'Personnel').trim() || 'Personnel')
+        .filter(Boolean)
+    ));
+    return sections.length ? sections : ['Personnel'];
+  }, [personalTasks]);
+
+  const archivePersonalSection = async (sectionName, archived) => {
+    const sectionTasks = personalTasks.filter((task) => ((task.source || 'Personnel').trim() || 'Personnel') === sectionName && Boolean(task.archived) !== archived);
+    if (!sectionTasks.length) {
+      return;
+    }
+
+    setPersonalTasks((current) =>
+      current.map((task) => {
+        const taskSection = (task.source || 'Personnel').trim() || 'Personnel';
+        if (taskSection !== sectionName) {
+          return task;
+        }
+
+        return {
+          ...task,
+          archived,
+          status: archived ? 'Terminee' : 'A faire',
+          completed: archived,
+        };
+      })
+    );
+
+    await Promise.all(sectionTasks.map((task) => onArchiveTask?.({ taskId: task.id, archived, projectId: null })));
   };
 
   const setProjectTaskStatus = async (projectId, taskId, status) => {
@@ -4603,7 +5222,7 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
     <section className="panel light-panel compact-screen">
       <div className="panel-heading compact dense-heading">
         <div>
-          <h3>{'Taches'}</h3>
+          <h3>Gestion des taches</h3>
         </div>
       </div>
 
@@ -4633,7 +5252,7 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
               </div>
               <div className="header-actions">
                 <span className="pill pill-electric">
-                  {personalTasks.filter((task) => getTaskStatus(task) !== 'Terminee').length} actives
+                  {showArchivedPersonalTasks ? archivedPersonalTasksCount : activePersonalTasksCount} {showArchivedPersonalTasks ? 'archivees' : 'actives'}
                 </span>
                 <button type="button" className="action-button compact" onClick={() => setIsPersonalTaskModalOpen(true)}>
                   <FontAwesomeIcon icon={faPlus} />
@@ -4642,9 +5261,13 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
               </div>
             </div>
             <CompactPersonalTasksTab
-              tasks={personalTasks}
+              tasks={visiblePersonalTasks}
               onDeleteTask={deletePersonalTask}
               onSetTaskStatus={movePersonalTask}
+              onArchiveSection={archivePersonalSection}
+              onToggleTaskArchived={togglePersonalTaskArchived}
+              showArchived={showArchivedPersonalTasks}
+              onToggleTaskArchivedView={setShowArchivedPersonalTasks}
             />
           </article>
         </div>
@@ -4663,7 +5286,9 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
                   key={projectItem.id}
                   type="button"
                   className={`project-task-tile ${isSelected ? 'is-active' : ''}`}
-                  onClick={() => setSelectedProjectId((current) => (current === projectItem.id ? null : projectItem.id))}
+                  onClick={() => {
+                    setSelectedProjectId((current) => (current === projectItem.id ? null : projectItem.id));
+                  }}
                 >
                   <span className="project-task-tile-name">{projectItem.name}</span>
                   <span className="project-task-tile-site">{projectItem.site || '-'}</span>
@@ -4683,12 +5308,6 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
 
               return (
                 <article key={projectItem.id} className="light-card tasks-dashboard-card project-task-card">
-                  <div className="panel-heading compact">
-                    <div>
-                      <h3>{projectItem.name}</h3>
-                      <p className="topbar-subcopy">{projectItem.site} - {tasks.length} tache(s)</p>
-                    </div>
-                  </div>
                   <CompactProjectTasksTab
                     canArchiveTask={false}
                     canCreateSection={false}
@@ -4749,14 +5368,36 @@ function TasksSection({ project, projects, personalTasks: sourcePersonalTasks, o
                 </select>
               </label>
               <label className="field field-full">
-                <span>Origine / dossier</span>
-                <input
-                  type="text"
-                  value={newPersonalTask.source}
-                  onChange={(event) => setNewPersonalTask((current) => ({ ...current, source: event.target.value }))}
-                  placeholder="Ex. Administratif, Relances, Personnel"
-                />
+                <span>Section</span>
+                <select
+                  value={isCreatingPersonalSection ? '__new__' : (newPersonalTask.source || 'Personnel')}
+                  onChange={(event) => {
+                    if (event.target.value === '__new__') {
+                      setIsCreatingPersonalSection(true);
+                      setNewPersonalTask((current) => ({ ...current, source: '' }));
+                      return;
+                    }
+                    setIsCreatingPersonalSection(false);
+                    setNewPersonalTask((current) => ({ ...current, source: event.target.value }));
+                  }}
+                >
+                  {personalSections.map((section) => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
+                  <option value="__new__">Nouvelle section</option>
+                </select>
               </label>
+              {isCreatingPersonalSection ? (
+                <label className="field field-full">
+                  <span>Nom de la nouvelle section</span>
+                  <input
+                    type="text"
+                    value={newPersonalTask.source}
+                    onChange={(event) => setNewPersonalTask((current) => ({ ...current, source: event.target.value }))}
+                    placeholder="Ex. Administratif, Relances, Personnel"
+                  />
+                </label>
+              ) : null}
             </div>
             <div className="modal-actions">
               <button type="button" className="secondary-button" onClick={() => setIsPersonalTaskModalOpen(false)}>
@@ -4782,6 +5423,8 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
   const galleryInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const threadBodyRef = useRef(null);
+  const shouldStickToBottomRef = useRef(true);
 
   const initialMessagesByConversation = useMemo(
     () => Object.fromEntries((directMessages ?? []).map((conversation) => [conversation.id, conversation.messages ?? []])),
@@ -4790,10 +5433,10 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
   const [messagesByConversation, setMessagesByConversation] = useState(initialMessagesByConversation);
 
   useEffect(() => {
-    setSelectedConversationId(null);
-    setAttachmentSort('recent');
-    setIsAttachmentsOpen(false);
-    setMessagesByConversation(initialMessagesByConversation);
+    setMessagesByConversation((current) => ({
+      ...initialMessagesByConversation,
+      ...current,
+    }));
   }, [initialMessagesByConversation]);
 
   useEffect(() => {
@@ -4819,6 +5462,7 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
         ...conversation,
         preview,
         lastTime: lastMessage?.time ?? '08:42',
+        sortTimestamp: lastMessage?.timestamp || conversation.updatedAt || null,
       };
     })
     .filter((conversation) => {
@@ -4829,10 +5473,8 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
       return conversation.name.toLowerCase().includes(query) || conversation.preview.toLowerCase().includes(query);
     })
     .sort((left, right) => {
-      const [leftHour = '0', leftMinute = '0'] = (left.lastTime ?? '00:00').split(':');
-      const [rightHour = '0', rightMinute = '0'] = (right.lastTime ?? '00:00').split(':');
-      const leftValue = Number(leftHour) * 60 + Number(leftMinute);
-      const rightValue = Number(rightHour) * 60 + Number(rightMinute);
+      const leftValue = left.sortTimestamp ? new Date(left.sortTimestamp).getTime() : 0;
+      const rightValue = right.sortTimestamp ? new Date(right.sortTimestamp).getTime() : 0;
       return rightValue - leftValue;
     });
 
@@ -4883,6 +5525,34 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
       })
   ), [attachmentSort, thread]);
 
+  const scrollThreadToBottom = (behavior = 'smooth') => {
+    const node = threadBodyRef.current;
+    if (!node) {
+      return;
+    }
+    node.scrollTo({ top: node.scrollHeight, behavior });
+  };
+
+  const updateStickiness = () => {
+    const node = threadBodyRef.current;
+    if (!node) {
+      return;
+    }
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+    shouldStickToBottomRef.current = distanceFromBottom < 48;
+  };
+
+  useEffect(() => {
+    shouldStickToBottomRef.current = true;
+    scrollThreadToBottom('auto');
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (shouldStickToBottomRef.current) {
+      scrollThreadToBottom('smooth');
+    }
+  }, [thread.length, selectedConversation?.id]);
+
   const sendMessage = async () => {
     const content = messageDraft.trim();
     if (!content || !selectedConversation) {
@@ -4899,6 +5569,7 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
           author: 'Vous',
           text: content,
           time,
+          timestamp: new Date().toISOString(),
           own: true,
           status: 'Envoye',
           attachment: null,
@@ -4932,6 +5603,7 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
           author: currentUserName || 'Vous',
           text: attachment.kind === 'image' ?`Photo envoyee : ${attachment.name}` : `Piece jointe : ${attachment.name}`,
           time,
+          timestamp: new Date().toISOString(),
           own: true,
           status: 'Envoye',
           attachment,
@@ -4960,22 +5632,15 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
 
   return (
     <section className="panel light-panel compact-screen messages-screen">
-      <div className="panel-heading compact dense-heading">
-        <div>
-          <h3>Messages</h3>
-          <p>Uniquement vos discussions privees avec vos amis.</p>
-        </div>
-        <span className="pill pill-electric">{directMessages.length} discussions</span>
-      </div>
       <div className={`messages-app ${selectedConversation ? 'has-open-thread' : ''}`}>
         {!selectedConversation ?(
           <div className="messages-list-panel">
             <div className="messages-list-top">
               <div>
-                <strong>Discussions privees</strong>
-                <small>Messages entre amis uniquement</small>
+                <strong>Conversations</strong>
+                <small>Chantiers, contacts et echanges recents</small>
               </div>
-              <span className="pill">{directMessages.length}</span>
+              <span className="pill">{conversationRows.length}</span>
             </div>
             <div className="messages-search">
               <input
@@ -5010,15 +5675,15 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
               </div>
             ) : (
               <div className="empty-state-card">
-                <strong>Aucune discussion privee</strong>
-                <p>Ouvrez une discussion depuis l"onglet Amis pour demarrer un echange.</p>
+                <strong>Aucune conversation</strong>
+                <p>Demarrez un echange avec un contact pour le faire remonter ici.</p>
                 <div className="friends-grid friends-grid-inline">
                   {(friends ?? []).slice(0, 6).map((friend) => (
                     <button key={friend.id || friend.userId || friend.email} type="button" className="friend-inline-card" onClick={() => onOpenPrivateDiscussion?.(friend)}>
                       <span className="friend-inline-avatar">{friend.name?.slice(0, 2).toUpperCase()}</span>
                       <span className="friend-inline-main">
                         <strong>{friend.name}</strong>
-                        <small>{friend.trade || friend.email || 'Contact'}</small>
+                        <small>{friend.trade || 'Contact'}</small>
                       </span>
                     </button>
                   ))}
@@ -5043,7 +5708,6 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
                 <span className="conversation-avatar large">{selectedConversation.name.slice(0, 2).toUpperCase()}</span>
                 <div>
                   <strong>{selectedConversation.name}</strong>
-                  <small>Discussion privee</small>
                 </div>
               </div>
               <div className="thread-actions">
@@ -5093,7 +5757,7 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
                 </div>
               </div>
             ) : null}
-            <div className="messages-thread-body">
+            <div className="messages-thread-body" ref={threadBodyRef} onScroll={updateStickiness}>
               {thread.map((message) => (
                 <div key={message.id} className={`chat-row ${message.own ? 'is-own' : ''}`}>
                   <article className={`chat-bubble ${message.own ? 'is-own' : ''}`}>
@@ -5137,18 +5801,19 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
               <button type="button" className="icon-button" onClick={() => cameraInputRef.current?.click()} aria-label="Prendre une photo">
                 <FontAwesomeIcon icon={faCamera} />
               </button>
-              <input
-                type="text"
+              <textarea
                 value={messageDraft}
                 onChange={(event) => setMessageDraft(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
                     sendMessage();
                   }
                 }}
-                placeholder="0crire un message"
+                placeholder="Ecrire un message"
+                rows={3}
               />
-              <button type="button" className="action-button" onClick={sendMessage}>
+              <button type="button" className="action-button messages-send-button" onClick={sendMessage}>
                 <FontAwesomeIcon icon={faPaperPlane} />
                 Envoyer
               </button>
@@ -5159,12 +5824,21 @@ function MessagesSection({ directMessages = [], friends = [], preferredConversat
     </section>
   );
 }
-function FriendsSection({ friends, invitations = [], currentUserStatus, onChangeCurrentUserStatus, onInviteFriend, onOpenPrivateDiscussion, onRespondToInvitation }) {
+function FriendsSection({ friends, invitations = [], currentUserStatus, onChangeCurrentUserStatus, onInviteFriend, onOpenPrivateDiscussion, onRespondToInvitation, onRemoveFriend }) {
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [startedChats, setStartedChats] = useState([]);
+  const [friendsTab, setFriendsTab] = useState('friends');
   const [presenceFilter, setPresenceFilter] = useState('online');
+  const [friendSearchTerm, setFriendSearchTerm] = useState('');
   const [friendInviteForm, setFriendInviteForm] = useState({ name: '', trade: '', email: '' });
+  const [isMobileFriends, setIsMobileFriends] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 767 : false));
+
+  useEffect(() => {
+    const syncViewport = () => setIsMobileFriends(window.innerWidth <= 767);
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
 
   const getFriendDetails = (friend) => {
     const slug = friend.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]+/g, '.').replace(/^\.|\.$/g, '');
@@ -5227,7 +5901,22 @@ function FriendsSection({ friends, invitations = [], currentUserStatus, onChange
     if (presenceFilter === 'online') return friend.status === 'En ligne';
     if (presenceFilter === 'offline') return friend.status !== 'En ligne';
     return true;
+  }).filter((friend) => {
+    const query = friendSearchTerm.trim().toLowerCase();
+    if (!query) return true;
+    return [friend.name, friend.trade, friend.company, friend.city]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
   });
+
+  const pendingFriendInvitations = invitations.filter((invite) => invite.status === 'pending');
+
+  const handleFriendInvitationResponse = async (inviteId, decision) => {
+    await onRespondToInvitation?.(inviteId, decision);
+    if (decision === 'accepted') {
+      setFriendsTab('friends');
+    }
+  };
 
   return (
     <section className="panel light-panel compact-screen friends-screen friends-screen-wide">
@@ -5236,7 +5925,9 @@ function FriendsSection({ friends, invitations = [], currentUserStatus, onChange
           <h3>Amis et partenaires</h3>
         </div>
         <div className="header-actions">
-          <span className="pill pill-electric">{filteredFriends.length} contacts</span>
+          <span className="pill pill-electric">
+            {friendsTab === 'friends' ? `${filteredFriends.length} contacts` : `${pendingFriendInvitations.length} invitations`}
+          </span>
           <button type="button" className="action-button compact" onClick={() => setIsAddFriendOpen(true)}>
             <FontAwesomeIcon icon={faPlus} />
             Ajouter
@@ -5245,97 +5936,128 @@ function FriendsSection({ friends, invitations = [], currentUserStatus, onChange
       </div>
 
       <div className="project-row-head">
-        <div className="task-tabs" aria-label="Filtrer les contacts">
-          <button type="button" className={`tab-button ${presenceFilter === 'online' ? 'is-active' : ''}`} onClick={() => setPresenceFilter('online')}>
-            En ligne
+        <div className="task-tabs" aria-label="Navigation amis">
+          <button type="button" className={`tab-button ${friendsTab === 'friends' ? 'is-active' : ''}`} onClick={() => setFriendsTab('friends')}>
+            Amis
           </button>
-          <button type="button" className={`tab-button ${presenceFilter === 'offline' ? 'is-active' : ''}`} onClick={() => setPresenceFilter('offline')}>
-            Hors ligne
+          <button type="button" className={`tab-button ${friendsTab === 'invitations' ? 'is-active' : ''}`} onClick={() => setFriendsTab('invitations')}>
+            Invitations
+            {pendingFriendInvitations.length ? <span className="pill pill-electric">{pendingFriendInvitations.length}</span> : null}
           </button>
         </div>
       </div>
 
-      {invitations.length ? (
+      {friendsTab === 'friends' ? (
+        <>
+          <div className="messages-search">
+            <input
+              type="text"
+              value={friendSearchTerm}
+              onChange={(event) => setFriendSearchTerm(event.target.value)}
+              placeholder="Rechercher un ami"
+            />
+          </div>
+
+          <div className="project-row-head">
+            <div className="task-tabs" aria-label="Filtrer les contacts">
+              <button type="button" className={`tab-button ${presenceFilter === 'online' ? 'is-active' : ''}`} onClick={() => setPresenceFilter('online')}>
+                En ligne
+              </button>
+              <button type="button" className={`tab-button ${presenceFilter === 'offline' ? 'is-active' : ''}`} onClick={() => setPresenceFilter('offline')}>
+                Hors ligne
+              </button>
+            </div>
+          </div>
+
+          <div className="friends-grid friends-grid-inline">
+            {filteredFriends.map((friend) => {
+              const details = getFriendDetails(friend);
+              const tone = getFriendTone(friend);
+              const hasChat = startedChats.includes(friend.id);
+              return (
+                <article key={friend.id} className={`friend-card friend-card-${tone}`}>
+                  <button type="button" className="friend-card-main" onClick={() => (isMobileFriends ? setSelectedFriend(friend) : openDiscussion(friend))}>
+                    <div className="friend-card-head">
+                      <span className="friend-avatar">{friend.name.slice(0, 2).toUpperCase()}</span>
+                      <div className="friend-card-copy">
+                        <strong>{friend.name}</strong>
+                        <small>{friend.trade}</small>
+                      </div>
+                      <span className={`friend-status friend-status-${tone}`}>{friend.status === 'Occupe' ? 'Occupe' : friend.status}</span>
+                    </div>
+                    <div className="friend-card-body">
+                      <span>{details.company}</span>
+                      <span>{details.city}</span>
+                    </div>
+                  </button>
+                  <div className="friend-card-actions">
+                    <button type="button" className={`action-button compact friend-action friend-action-${tone === 'offline' ? 'offline' : 'online'}`} onClick={() => openDiscussion(friend)}>
+                      <FontAwesomeIcon icon={faComments} />
+                      {hasChat ? 'Discussion creee' : 'Discuter'}
+                    </button>
+                    <button type="button" className="secondary-button compact friend-action friend-action-info" onClick={() => setSelectedFriend(friend)}>
+                      <FontAwesomeIcon icon={faCircleInfo} />
+                      Infos
+                    </button>
+                    {friend.friendshipId ? (
+                      <button type="button" className="secondary-button compact friend-action" onClick={() => onRemoveFriend?.(friend)}>
+                        <FontAwesomeIcon icon={faTrash} />
+                        Supprimer
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+            {filteredFriends.length === 0 ?(
+              <article className="friend-card">
+                <div className="friend-card-main">
+                  <div className="friend-card-copy">
+                    <strong>Aucun contact</strong>
+                    <small>Aucun profil ne correspond a ce filtre.</small>
+                  </div>
+                </div>
+              </article>
+            ) : null}
+          </div>
+        </>
+      ) : (
         <div className="friend-invitations-panel">
           <div className="panel-heading compact">
             <div>
-              <strong>Invitations recues</strong>
-              <small>{invitations.length} en attente</small>
+              <strong>Invitations d'amis</strong>
+              <small>{pendingFriendInvitations.length} en attente</small>
             </div>
           </div>
           <div className="friend-invitations-list">
-            {invitations.map((invite) => (
+            {pendingFriendInvitations.length ? pendingFriendInvitations.map((invite) => (
               <article key={invite.id} className="friend-invite-card">
                 <div className="friend-invite-copy">
                   <strong>{invite.name}</strong>
-                  <small>{invite.trade || 'Partenaire'} - {invite.email}</small>
+                  <small>{invite.trade || 'Partenaire'}</small>
                 </div>
                 <div className="friend-invite-actions">
-                  <button type="button" className="secondary-button compact" onClick={() => onRespondToInvitation?.(invite.id, 'refused')}>
+                  <button type="button" className="secondary-button compact" onClick={() => handleFriendInvitationResponse(invite.id, 'refused')}>
                     Refuser
                   </button>
-                  <button type="button" className="action-button compact" onClick={() => onRespondToInvitation?.(invite.id, 'accepted')}>
+                  <button type="button" className="action-button compact" onClick={() => handleFriendInvitationResponse(invite.id, 'accepted')}>
                     Accepter
                   </button>
                 </div>
               </article>
-            ))}
+            )) : (
+              <article className="friend-card">
+                <div className="friend-card-main">
+                  <div className="friend-card-copy">
+                    <strong>Aucune invitation</strong>
+                    <small>Les nouvelles demandes d'amis apparaitront ici.</small>
+                  </div>
+                </div>
+              </article>
+            )}
           </div>
         </div>
-      ) : null}
-
-      {!!startedChats.length && (
-        <div className="friend-chat-banner">
-          <strong>{startedChats.length} discussion{startedChats.length > 1 ? 's' : ''} prete{startedChats.length > 1 ? 's' : ''}</strong>
-          <small>Clique sur un contact pour ouvrir ou reprendre une discussion.</small>
-        </div>
       )}
-
-      <div className="friends-grid friends-grid-inline">
-        {filteredFriends.map((friend) => {
-          const details = getFriendDetails(friend);
-          const tone = getFriendTone(friend);
-          const hasChat = startedChats.includes(friend.id);
-          return (
-            <article key={friend.id} className={`friend-card friend-card-${tone}`}>
-              <button type="button" className="friend-card-main" onClick={() => openDiscussion(friend)}>
-                <div className="friend-card-head">
-                  <span className="friend-avatar">{friend.name.slice(0, 2).toUpperCase()}</span>
-                  <div className="friend-card-copy">
-                    <strong>{friend.name}</strong>
-                    <small>{friend.trade}</small>
-                  </div>
-                  <span className={`friend-status friend-status-${tone}`}>{friend.status === 'Occupe' ? 'Occupe' : friend.status}</span>
-                </div>
-                <div className="friend-card-body">
-                  <span>{details.company}</span>
-                  <span>{details.city}</span>
-                </div>
-              </button>
-              <div className="friend-card-actions">
-                <button type="button" className={`action-button compact friend-action friend-action-${tone === 'offline' ? 'offline' : 'online'}`} onClick={() => openDiscussion(friend)}>
-                  <FontAwesomeIcon icon={faComments} />
-                  {hasChat ? 'Discussion creee' : 'Discuter'}
-                </button>
-                <button type="button" className="secondary-button compact friend-action" onClick={() => setSelectedFriend(friend)}>
-                  <FontAwesomeIcon icon={faEye} />
-                  Voir infos
-                </button>
-              </div>
-            </article>
-          );
-        })}
-        {filteredFriends.length === 0 ?(
-          <article className="friend-card">
-            <div className="friend-card-main">
-              <div className="friend-card-copy">
-                <strong>Aucun contact</strong>
-                <small>Aucun profil ne correspond a ce filtre.</small>
-              </div>
-            </div>
-          </article>
-        ) : null}
-      </div>
 
       {selectedFriend && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -5362,10 +6084,6 @@ function FriendsSection({ friends, invitations = [], currentUserStatus, onChange
                 <strong>{getFriendDetails(selectedFriend).company}</strong>
               </div>
               <div className="details-row">
-                <span>Email</span>
-                <strong>{getFriendDetails(selectedFriend).email}</strong>
-              </div>
-              <div className="details-row">
                 <span>Telephone</span>
                 <strong>{getFriendDetails(selectedFriend).phone}</strong>
               </div>
@@ -5385,6 +6103,19 @@ function FriendsSection({ friends, invitations = [], currentUserStatus, onChange
                 <FontAwesomeIcon icon={faComments} />
                 Demarrer une discussion
               </button>
+              {selectedFriend.friendshipId ? (
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  onClick={async () => {
+                    await onRemoveFriend?.(selectedFriend);
+                    setSelectedFriend(null);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                  Supprimer cet ami
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -5480,89 +6211,26 @@ function ProfileSection({ profileForm, onChangeProfile, onSaveProfile, onSignOut
       return;
     }
     setAvatarFile(file);
-    onChangeProfile((current) => ({
+    setProfileDraft((current) => ({
       ...current,
       avatarUrl: URL.createObjectURL(file),
     }));
   };
 
+  useEffect(() => {
+    if (!isProfileEditOpen) {
+      setProfileDraft(profileForm);
+    }
+  }, [profileForm, isProfileEditOpen]);
+
   return (
     <section className="panel light-panel compact-screen profile-screen profile-screen-wide">
-      <div className="panel-heading compact dense-heading">
-        <div>
-          <h3>Profil</h3>
-        </div>
-        <button
-          type="button"
-          className="action-button compact"
-          onClick={() => onChangeProfile(initialProfile)}
-        >
-          Reinitialiser
-        </button>
-      </div>
-
       <div className="profile-shell">
         <div className="profile-hero-card">
-          <div className="profile-hero-top">
-            <div className="profile-identity-card">
-              <div className="profile-avatar-panel">
-                {profileForm.avatarUrl ?(
-                  <img src={profileForm.avatarUrl} alt={profileForm.name} className="profile-avatar-large profile-avatar-image" />
-                ) : (
-                  <span className="profile-avatar-large">{profileForm.name.slice(0, 2).toUpperCase()}</span>
-                )}
-                <label className="secondary-button compact profile-avatar-upload">
-                  Changer la photo
-                  <input type="file" accept="image/*" className="messages-hidden-input" onChange={updateProfileAvatar} />
-                </label>
-              </div>
-              <div className="profile-showcase-copy">
-                <span className="profile-card-kicker">Identite</span>
-                <div className="profile-inline-topline">
-                  <span className="profile-inline-title">{profileForm.name}</span>
-                  <button
-                    type="button"
-                    className={`profile-status-button ${profileForm.status === 'En ligne' ? 'is-active is-online' : ''}`}
-                    onClick={() => onChangeProfile((current) => ({ ...current, status: 'En ligne' }))}
-                  >
-                    En ligne
-                  </button>
-                  <button
-                    type="button"
-                    className={`profile-status-button ${profileForm.status === 'Hors ligne' ? 'is-active is-offline' : ''}`}
-                    onClick={() => onChangeProfile((current) => ({ ...current, status: 'Hors ligne' }))}
-                  >
-                    Hors ligne
-                  </button>
-                </div>
-                <p className="profile-hero-note">Profil principal utilise dans les echanges chantier et les discussions.</p>
-                <div className="profile-inline-headline">
-                  <span className="profile-inline-chip">
-                    <span className="profile-inline-subtitle">{profileForm.role}</span>
-                  </span>
-                  <span className="profile-inline-chip">
-                    <span className="profile-inline-subtitle">{profileForm.company}</span>
-                  </span>
-                </div>
-                <div className="profile-hero-meta">
-                  <span className={`friend-status ${profileForm.status === 'En ligne' ? 'friend-status-online' : 'friend-status-offline'}`}>
-                    {profileForm.status}
-                  </span>
-                  <span className="profile-hero-meta-item">{profileForm.email}</span>
-                  <span className="profile-hero-meta-item">{profileForm.phone}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <div className="profile-detail-section">
-          <div className="profile-edit-banner profile-edit-banner-inline">
-            <span className="profile-card-kicker">Informations modifiables</span>
+          <div className="profile-top-actions">
             <button
               type="button"
-              className="secondary-button compact"
+              className="secondary-button compact profile-edit-toggle"
               onClick={() => {
                 setProfileDraft(profileForm);
                 setIsProfileEditOpen(true);
@@ -5570,103 +6238,180 @@ function ProfileSection({ profileForm, onChangeProfile, onSaveProfile, onSignOut
             >
               Modifier
             </button>
-          </div>
-
-          <div className="profile-edit-summary">
-            <div className="details-row"><span>Email</span><strong>{profileForm.email}</strong></div>
-            <div className="details-row"><span>Telephone</span><strong>{profileForm.phone}</strong></div>
-            <div className="details-row"><span>Role</span><strong>{profileForm.role}</strong></div>
-            <div className="details-row"><span>Societe</span><strong>{profileForm.company}</strong></div>
-            <div className="details-row"><span>Ville</span><strong>{profileForm.city}</strong></div>
-            <div className="details-row"><span>Specialite</span><strong>{profileForm.specialty}</strong></div>
-            <div className="details-row"><span>Disponibilite</span><strong>{profileForm.availability}</strong></div>
-            <div className="details-row"><span>Zone</span><strong>{profileForm.zone}</strong></div>
-            <div className="details-row"><span>Site web</span><strong>{profileForm.website}</strong></div>
-          </div>
-        </div>
-
-        <div className="profile-actions-bar">
-          <div className="profile-showcase-actions">
-            <button type="button" className="secondary-button compact" onClick={() => onChangeProfile(initialProfile)}>
-              Annuler les changements
-            </button>
-            <button type="button" className="action-button compact" onClick={() => onSaveProfile?.(profileForm, avatarFile)}>
-              Enregistrer
-            </button>
-            <button type="button" className="secondary-button compact" onClick={() => onSignOut?.()}>
+            <button type="button" className="secondary-button compact profile-signout-toggle" onClick={() => onSignOut?.()}>
               Deconnexion
             </button>
           </div>
+          <div className="profile-hero-top">
+            <div className="profile-identity-card">
+              <div className="profile-avatar-panel">
+                {profileForm.avatarUrl ? (
+                  <img src={profileForm.avatarUrl} alt={profileForm.name} className="profile-avatar-large profile-avatar-image" />
+                ) : (
+                  <span className="profile-avatar-large">{profileForm.name.slice(0, 2).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="profile-showcase-copy">
+                <div className="profile-edit-banner profile-edit-banner-inline">
+                  <span className="profile-card-kicker">Identite</span>
+                </div>
+                <div className="profile-inline-topline">
+                  <span className="profile-inline-title">{profileForm.name}</span>
+                  <div className="profile-status-switch">
+                    <button
+                      type="button"
+                      className={`profile-status-button ${profileForm.status === 'En ligne' ? 'is-active is-online' : ''}`}
+                    >
+                      En ligne
+                    </button>
+                    <button
+                      type="button"
+                      className={`profile-status-button ${profileForm.status === 'Hors ligne' ? 'is-active is-offline' : ''}`}
+                    >
+                      Hors ligne
+                    </button>
+                  </div>
+                </div>
+                <p className="profile-hero-note">Profil principal utilise dans les echanges chantier et les discussions.</p>
+                <div className="profile-hero-meta">
+                  <span className={`friend-status ${profileForm.status === 'En ligne' ? 'friend-status-online' : 'friend-status-offline'}`}>
+                    {profileForm.status}
+                  </span>
+                  {profileForm.email ? <span className="profile-hero-meta-item">{profileForm.email}</span> : null}
+                  {profileForm.phone ? <span className="profile-hero-meta-item">{profileForm.phone}</span> : null}
+                </div>
+                <div className="profile-quick-grid">
+                  <div className="profile-quick-tile profile-quick-tile-accent">
+                    <span>Specialite</span>
+                    <strong>{profileForm.specialty}</strong>
+                  </div>
+                  <div className="profile-quick-tile profile-quick-tile-soft">
+                    <span>Disponibilite</span>
+                    <strong>{profileForm.availability}</strong>
+                  </div>
+                  <div className="profile-quick-tile profile-quick-tile-soft">
+                    <span>Zone</span>
+                    <strong>{profileForm.zone}</strong>
+                  </div>
+                  <div className="profile-quick-tile profile-quick-tile-accent">
+                    <span>Societe</span>
+                    <strong>{profileForm.company}</strong>
+                  </div>
+                </div>
+                <div className="profile-edit-summary profile-edit-summary-inline">
+                  <>
+                    <div className="details-row"><span>Email</span><strong>{profileForm.email}</strong></div>
+                    <div className="details-row"><span>Telephone</span><strong>{profileForm.phone}</strong></div>
+                    <div className="details-row"><span>Role</span><strong>{profileForm.role}</strong></div>
+                    <div className="details-row"><span>Societe</span><strong>{profileForm.company}</strong></div>
+                    <div className="details-row"><span>Ville</span><strong>{profileForm.city}</strong></div>
+                    <div className="details-row"><span>Specialite</span><strong>{profileForm.specialty}</strong></div>
+                    <div className="details-row"><span>Disponibilite</span><strong>{profileForm.availability}</strong></div>
+                    <div className="details-row"><span>Zone</span><strong>{profileForm.zone}</strong></div>
+                    <div className="details-row"><span>Site web</span><strong>{profileForm.website}</strong></div>
+                  </>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
       {isProfileEditOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal-card light-modal detail-modal friend-info-modal">
-            <div className="panel-heading compact">
+          <div className="modal-card light-modal profile-edit-modal">
+            <div className="section-header">
               <div>
-                <h3>Modifier les informations</h3>
+                <p className="eyebrow">Profil</p>
+                <h3>Modifier la fiche</h3>
               </div>
-              <button type="button" className="secondary-button compact" onClick={() => setIsProfileEditOpen(false)}>
-                Fermer
-              </button>
-            </div>
-            <div className="profile-detail-grid">
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Email</span>
-                <input type="email" value={profileDraft.email} onChange={updateDraftField('email')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Telephone</span>
-                <input type="text" value={profileDraft.phone} onChange={updateDraftField('phone')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Role</span>
-                <input type="text" value={profileDraft.role} onChange={updateDraftField('role')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Societe</span>
-                <input type="text" value={profileDraft.company} onChange={updateDraftField('company')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Ville</span>
-                <input type="text" value={profileDraft.city} onChange={updateDraftField('city')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Specialite</span>
-                <input type="text" value={profileDraft.specialty} onChange={updateDraftField('specialty')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Disponibilite</span>
-                <input type="text" value={profileDraft.availability} onChange={updateDraftField('availability')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card">
-                <span className="profile-card-kicker">Zone</span>
-                <input type="text" value={profileDraft.zone} onChange={updateDraftField('zone')} className="profile-card-input" />
-              </label>
-              <label className="profile-detail-card profile-detail-card-wide">
-                <span className="profile-card-kicker">Site web</span>
-                <input type="text" value={profileDraft.website} onChange={updateDraftField('website')} className="profile-card-input" />
-              </label>
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="secondary-button compact" onClick={() => setIsProfileEditOpen(false)}>
-                Annuler
-              </button>
               <button
                 type="button"
-                className="action-button compact"
+                className="ghost-button"
                 onClick={() => {
-                  onChangeProfile((current) => ({ ...current, ...profileDraft }));
+                  setProfileDraft(profileForm);
+                  setAvatarFile(null);
                   setIsProfileEditOpen(false);
                 }}
               >
-                Enregistrer
+                Fermer
               </button>
+            </div>
+            <div className="profile-edit-modal-grid">
+              <div className="profile-edit-modal-avatar">
+                <div className="profile-avatar-panel">
+                  {profileDraft.avatarUrl ? (
+                    <img src={profileDraft.avatarUrl} alt={profileDraft.name} className="profile-avatar-large profile-avatar-image" />
+                  ) : (
+                    <span className="profile-avatar-large">{profileDraft.name.slice(0, 2).toUpperCase()}</span>
+                  )}
+                  <label className="secondary-button compact profile-avatar-upload">
+                    Changer la photo
+                    <input type="file" accept="image/*" className="messages-hidden-input" onChange={updateProfileAvatar} />
+                  </label>
+                </div>
+              </div>
+              <div className="profile-edit-form">
+                <label className="details-row align-start"><span>Nom</span><input type="text" value={profileDraft.name} onChange={updateDraftField('name')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Email</span><input type="email" value={profileDraft.email} onChange={updateDraftField('email')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Telephone</span><input type="text" value={profileDraft.phone} onChange={updateDraftField('phone')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Role</span><input type="text" value={profileDraft.role} onChange={updateDraftField('role')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Societe</span><input type="text" value={profileDraft.company} onChange={updateDraftField('company')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Ville</span><input type="text" value={profileDraft.city} onChange={updateDraftField('city')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Specialite</span><input type="text" value={profileDraft.specialty} onChange={updateDraftField('specialty')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Disponibilite</span><input type="text" value={profileDraft.availability} onChange={updateDraftField('availability')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Zone</span><input type="text" value={profileDraft.zone} onChange={updateDraftField('zone')} className="profile-card-input" /></label>
+                <label className="details-row align-start"><span>Site web</span><input type="text" value={profileDraft.website} onChange={updateDraftField('website')} className="profile-card-input" /></label>
+                <div className="profile-edit-status">
+                  <span>Statut</span>
+                  <div className="profile-status-switch">
+                    <button
+                      type="button"
+                      className={`profile-status-button ${profileDraft.status === 'En ligne' ? 'is-active is-online' : ''}`}
+                      onClick={() => setProfileDraft((current) => ({ ...current, status: 'En ligne' }))}
+                    >
+                      En ligne
+                    </button>
+                    <button
+                      type="button"
+                      className={`profile-status-button ${profileDraft.status === 'Hors ligne' ? 'is-active is-offline' : ''}`}
+                      onClick={() => setProfileDraft((current) => ({ ...current, status: 'Hors ligne' }))}
+                    >
+                      Hors ligne
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="profile-actions-bar">
+              <div className="profile-showcase-actions">
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  onClick={() => {
+                    setProfileDraft(profileForm);
+                    setAvatarFile(null);
+                    setIsProfileEditOpen(false);
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className="action-button compact"
+                  onClick={() => {
+                    onChangeProfile((current) => ({ ...current, ...profileDraft }));
+                    onSaveProfile?.(profileDraft, avatarFile);
+                    setIsProfileEditOpen(false);
+                  }}
+                >
+                  Enregistrer
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
     </section>
   );
 }
@@ -5678,9 +6423,16 @@ function AccessManagementModal({
   participants,
 }) {
   const [draftParticipants, setDraftParticipants] = useState(participants);
+  const [selectedParticipantId, setSelectedParticipantId] = useState(participants[0]?.id ?? null);
 
   useEffect(() => {
     setDraftParticipants(participants);
+    setSelectedParticipantId((current) => {
+      if (participants.some((participant) => participant.id === current)) {
+        return current;
+      }
+      return participants[0]?.id ?? null;
+    });
   }, [participants]);
 
   const updateDraftParticipant = (participantId, updater) => {
@@ -5693,6 +6445,8 @@ function AccessManagementModal({
     const nextPermissions = Object.fromEntries(permissionOptions.map((permission) => [permission.key, checked]));
     updateDraftParticipant(participantId, (participant) => ({ ...participant, permissions: nextPermissions }));
   };
+
+  const visibleParticipants = draftParticipants.filter((participant) => participant.id === selectedParticipantId);
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -5708,17 +6462,28 @@ function AccessManagementModal({
           </button>
         </div>
 
-        <div className="access-summary">
-          {roleOptions.map((role) => (
-            <article key={role} className="access-summary-card">
-              <span>{role}</span>
-              <strong>{participants.filter((participant) => getNormalizedRole(participant.role) === role).length}</strong>
-            </article>
-          ))}
+        <div className="access-mobile-picker">
+          <p className="access-mobile-picker-title">Gerer les acces de...</p>
+          <div className="access-mobile-picker-list">
+            {draftParticipants.map((participant) => (
+              <button
+                key={participant.id}
+                type="button"
+                className={`access-mobile-person-chip ${participant.id === selectedParticipantId ? 'is-active' : ''}`}
+                onClick={() => setSelectedParticipantId(participant.id)}
+              >
+                <span className="access-mobile-person-avatar">{participant.name.slice(0, 2).toUpperCase()}</span>
+                <span className="access-mobile-person-copy">
+                  <strong>{participant.name}</strong>
+                  <small>{participant.company || getNormalizedRole(participant.role)}</small>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="access-list">
-          {draftParticipants.map((participant) => {
+          {visibleParticipants.map((participant) => {
             const normalizedRole = getNormalizedRole(participant.role);
             const isCurrentUser = participant.name === currentUserName;
             const effectivePermissions = mergePermissions(normalizedRole, participant.permissions);
@@ -5910,6 +6675,59 @@ function ProjectInfoModal({ onClose, project }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotificationCenterModal({ notifications, onClose, onMarkAllRead }) {
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card light-modal detail-modal invitation-center-modal notification-center-modal">
+        <div className="panel-heading compact">
+          <div>
+            <p className="eyebrow">Notifications</p>
+            <h3>Centre de notifications</h3>
+            <p className="topbar-subcopy">{unreadCount} non lues</p>
+          </div>
+          <div className="workspace-modal-actions">
+            <button type="button" className="secondary-button compact" onClick={onMarkAllRead} disabled={!unreadCount}>
+              Tout marquer comme lu
+            </button>
+            <button type="button" className="secondary-button compact" onClick={onClose}>
+              Fermer
+            </button>
+          </div>
+        </div>
+
+        <div className="invitation-list">
+          {notifications.length ?(
+            notifications.map((notification) => (
+              <article
+                key={notification.id}
+                className={`list-row-button invitation-row invitation-row-compact notification-row ${notification.isRead ? 'is-read' : 'is-unread'}`}
+              >
+                <div className="list-row-main">
+                  <strong>{notification.title}</strong>
+                  <small>{notification.body || 'Aucun detail supplementaire.'}</small>
+                </div>
+                <div className="access-controls notification-row-meta">
+                  <span className={`pill ${notification.isRead ? '' : 'pill-electric'}`}>{notification.isRead ? 'Lu' : 'Non lu'}</span>
+                  <small>{notification.createdLabel}</small>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="summary-card">
+              <div className="summary-row">
+                <span>Aucune notification</span>
+                <strong>0</strong>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
